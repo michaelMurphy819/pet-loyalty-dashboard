@@ -1,0 +1,72 @@
+{
+  "Dashboard": {
+    "title": "Business Intelligence",
+    "subtitle": "Executive overview of pet adoption analytics and regional performance.",
+    "kpi": {
+      "totalAdoptions": "Total Adoptions",
+      "thisWeek": "Adoptions This Week"
+    },
+    "filters": {
+      "interval": "Interval",
+      "species": "Species",
+      "year": "Year",
+      "allSpecies": "All Species",
+      "allTime": "All Time",
+      "daily": "Daily",
+      "weekly": "Weekly",
+      "monthly": "Monthly"
+    },
+    "charts": {
+      "adoptionsOverTime": "Adoptions Over Time",
+      "adoptionsByPlatform": "Adoptions by Platform",
+      "adoptionsBySpecies": "Adoptions by Species",
+      "forecast": "Forecast"
+    },
+    "reporting": {
+      "exportReport": "Export Report",
+      "clearAll": "Clear All",
+      "plainEnglish": "Showing adoption data for {year}, tracking {species} on a {interval} basis.",
+      "tooltips": {
+        "timeSeries": "This chart displays the volume of adoptions over time. Upward trends indicate successful campaigns.",
+        "platform": "Breakdown of the software platforms where adoptions were recorded.",
+        "species": "Proportion of adoptions separated by animal species."
+      }
+    },
+    "nav": {
+      "overview": "Overview",
+      "globalMap": "Global Map",
+      "regionalDirectory": "Regional Directory",
+      "analytics": "Analytics",
+      "searchPlaceholder": "Search regions..."
+    },
+    "benchmarking": {
+      "up": "Up {percent}% from last period",
+      "down": "Down {percent}% from last period",
+      "noChange": "No change from last period"
+    },
+    "directory": {
+      "title": "Regional Directory",
+      "subtitle": "Raw adoption data grouped by location for internal analysis.",
+      "downloadCsv": "Download CSV",
+      "columns": {
+        "city": "City",
+        "state": "State",
+        "country": "Country",
+        "totalAdoptions": "Total Adoptions",
+        "latestAdoption": "Latest Adoption"
+      }
+    },
+    "landing": {
+      "title": "Welcome to Pet Loyalty",
+      "subtitle": "The global business intelligence platform for animal shelter network analytics.",
+      "loginStaff": "Log in as Staff",
+      "loginAdmin": "Log in as Admin"
+    },
+    "auth": {
+      "signOut": "Sign Out",
+      "roleStaff": "Staff",
+      "roleAdmin": "Admin",
+      "signedInAs": "Signed in as"
+    }
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "Dashboard": {
+    "title": "Inteligencia de Negocios",
+    "subtitle": "Resumen ejecutivo de analíticas de adopción de mascotas y rendimiento regional.",
+    "kpi": {
+      "totalAdoptions": "Adopciones Totales",
+      "thisWeek": "Adopciones Esta Semana"
+    },
+    "filters": {
+      "interval": "Intervalo",
+      "species": "Especie",
+      "year": "Año",
+      "allSpecies": "Todas las Especies",
+      "allTime": "Todo el Tiempo",
+      "daily": "Diario",
+      "weekly": "Semanal",
+      "monthly": "Mensual"
+    },
+    "charts": {
+      "adoptionsOverTime": "Adopciones a lo Largo del Tiempo",
+      "adoptionsByPlatform": "Adopciones por Plataforma",
+      "adoptionsBySpecies": "Adopciones por Especie",
+      "forecast": "Pronóstico"
+    },
+    "reporting": {
+      "exportReport": "Exportar Informe",
+      "clearAll": "Borrar Todo",
+      "plainEnglish": "Mostrando datos de adopción para {year}, rastreando {species} de forma {interval}.",
+      "tooltips": {
+        "timeSeries": "Este gráfico muestra el volumen de adopciones a lo largo del tiempo. Las tendencias al alza indican campañas exitosas.",
+        "platform": "Desglose de las plataformas de software donde se registraron las adopciones.",
+        "species": "Proporción de adopciones separadas por especie animal."
+      }
+    },
+    "nav": {
+      "overview": "Resumen",
+      "globalMap": "Mapa Global",
+      "regionalDirectory": "Directorio Regional",
+      "analytics": "Análisis",
+      "searchPlaceholder": "Buscar regiones..."
+    },
+    "benchmarking": {
+      "up": "Sube {percent}% desde el último período",
+      "down": "Baja {percent}% desde el último período",
+      "noChange": "Sin cambios desde el último período"
+    },
+    "directory": {
+      "title": "Directorio Regional",
+      "subtitle": "Datos crudos de adopción agrupados por ubicación para análisis interno.",
+      "downloadCsv": "Descargar CSV",
+      "columns": {
+        "city": "Ciudad",
+        "state": "Estado",
+        "country": "País",
+        "totalAdoptions": "Adopciones Totales",
+        "latestAdoption": "Última Adopción"
+      }
+    },
+    "landing": {
+      "title": "Bienvenido a Pet Loyalty",
+      "subtitle": "La plataforma de inteligencia empresarial global para el análisis de redes de refugios de animales.",
+      "loginStaff": "Iniciar sesión como Personal",
+      "loginAdmin": "Iniciar sesión como Administrador"
+    },
+    "auth": {
+      "signOut": "Cerrar Sesión",
+      "roleStaff": "Personal",
+      "roleAdmin": "Admin",
+      "signedInAs": "Conectado como"
+    }
+  }
+}
