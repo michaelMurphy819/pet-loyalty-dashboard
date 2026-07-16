@@ -20,7 +20,8 @@ export function CountryDataTable({ data }: { data: any[] }) {
       item.species, 
       item.stateCode, 
       item.city,
-      item.platform
+      item.platform,
+      item.organizationName
     ].filter(Boolean).join(' ').toLowerCase();
 
     // Ensure EVERY term the user typed is found somewhere in the row's data
@@ -69,7 +70,9 @@ export function CountryDataTable({ data }: { data: any[] }) {
                         {row.platform}
                       </span>
                     </td>
-                    <td className="px-6 py-3 text-slate-600">{row.city ? `${row.city}, ${row.stateCode}` : row.stateCode}</td>
+                    <td className="px-6 py-3 text-slate-600">
+                      {row.city ? `${row.city}, ${row.stateCode}` : (row.organizationName || "Unknown")}
+                    </td>
                     <td className="px-6 py-3 text-slate-600 text-right">
                       {new Date(row.adoptionTimestamp).toLocaleDateString()}
                     </td>

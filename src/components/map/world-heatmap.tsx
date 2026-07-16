@@ -44,13 +44,13 @@ export function WorldHeatmap({ data }: WorldHeatmapProps) {
     return scaleQuantize<string>()
       .domain([0, max])
       .range([
-        "#e0e7ff",
-        "#c7d2fe",
         "#a5b4fc",
         "#818cf8",
         "#6366f1",
         "#4f46e5",
         "#4338ca",
+        "#3730a3",
+        "#312e81",
       ]);
   }, [data]);
 
@@ -82,8 +82,8 @@ export function WorldHeatmap({ data }: WorldHeatmapProps) {
                       key={geo.rsmKey}
                       geography={geo}
                       fill={val ? colorScale(val) : "#f8fafc"}
-                      stroke="#cbd5e1"
-                      strokeWidth={0.5}
+                      stroke={val ? "#312e81" : "#e2e8f0"}
+                      strokeWidth={val ? 0.8 : 0.4}
                       style={{
                         default: { outline: "none" },
                         hover: { fill: "#3b82f6", outline: "none", transition: "all 0.2s", cursor: val ? "pointer" : "default" },

@@ -1,25 +1,27 @@
-import { getCountryDashboardData } from "@/queries/dashboard";
+import { getCityDashboardData } from "@/queries/dashboard";
 import { TimeSeriesAreaChart } from "@/components/charts/time-series-area-chart";
 import { CountryDataTable } from "@/components/country-data-table";
 import { CountryPieChart } from "@/components/charts/country-pie-chart";
-import { CountryLocationBarChart } from "@/components/charts/country-location-bar-chart";
 import { DashboardFilters } from "@/components/dashboard-filters";
-import Link from "next/link";
+import { Link } from "@/i18n/routing";
 import { ArrowLeft, MapPin } from "lucide-react";
 
 export const revalidate = 60; // ISR cache
 
-export default async function CountryDashboardPage({ 
+export default async function CityDashboardPage({ 
   params,
   searchParams,
 }: { 
-  params: Promise<{ countryCode: string }>;
+  params: Promise<{ slug: string[] }>;
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const resolvedParams = await params;
   const resolvedSearchParams = await searchParams;
   
-  const code = resolvedParams.countryCode.toUpperCase();
+  const slug = resolvedParams.slug;
+  const countryCode = slug[0];
+  const stateCode = slug.length === 3 ? decodeURIComponent(slug[1]) : "none";
+  const city = slug.length === 3 ? decodeURIComponent(slug[2]) : decodeURIComponent(slug[1]);
   
   const filters = {
     interval: typeof resolvedSearchParams.interval === 'string' ? resolvedSearchParams.interval : undefined,
@@ -28,13 +30,15 @@ export default async function CountryDashboardPage({
     platform: typeof resolvedSearchParams.platform === 'string' ? resolvedSearchParams.platform : undefined,
   };
 
-  const data = await getCountryDashboardData(code, filters);
+  const data = await getCityDashboardData(countryCode, stateCode, city, filters);
 
   const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
-  let countryName = code;
+  let countryName = countryCode;
   try {
-    countryName = regionNames.of(code) || code;
+    countryName = regionNames.of(countryCode) || countryCode;
   } catch(e) {}
+
+  const locationTitle = stateCode !== "none" && stateCode !== "_" ? `${city}, ${stateCode}` : city;
 
   return (
     <div className="flex flex-col gap-8 p-6 md:p-10 max-w-[1600px] mx-auto min-h-screen">
@@ -42,21 +46,21 @@ export default async function CountryDashboardPage({
       {/* Header Area */}
       <div className="flex flex-col gap-4">
         <Link 
-          href="/dashboard/map" 
+          href="/dashboard/cities" 
           className="inline-flex items-center text-sm font-medium text-slate-500 hover:text-indigo-600 transition-colors w-fit group"
         >
           <ArrowLeft className="mr-2 h-4 w-4 transition-transform group-hover:-translate-x-1" />
-          Back to Global Map
+          Back to Regional Directory
         </Link>
         
         <div className="flex flex-col sm:flex-row sm:items-end justify-between border-b border-slate-200 pb-6 gap-6">
           <div className="flex flex-col space-y-1">
             <h1 className="text-4xl font-black tracking-tight text-slate-900 flex items-center gap-3">
               <MapPin className="h-8 w-8 text-indigo-600" />
-              {countryName}
+              {locationTitle} <span className="text-2xl text-slate-400 font-normal">({countryName})</span>
             </h1>
             <p className="text-slate-500 text-lg">
-              Regional adoption analytics and raw data export.
+              Hyper-local adoption analytics and raw data export.
             </p>
           </div>
           <div className="flex flex-col items-end text-right bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 shadow-sm w-full sm:w-auto">
@@ -80,12 +84,6 @@ export default async function CountryDashboardPage({
         <div className="grid gap-8 md:grid-cols-2">
           <CountryPieChart data={data.speciesData} title="Adoptions by Species" filterKey="species" />
           <CountryPieChart data={data.platformData} title="Adoptions by Platform" filterKey="platform" />
-        </div>
-
-        {/* Breakdowns Row 2: Location Bar Charts */}
-        <div className="grid gap-8 md:grid-cols-2">
-          <CountryLocationBarChart data={data.shelterData} title="Top 5 Shelters" />
-          <CountryLocationBarChart data={data.cityData} title="Top 5 Cities" />
         </div>
 
         {/* Raw Data Table at the very bottom */}

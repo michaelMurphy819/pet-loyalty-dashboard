@@ -19,6 +19,7 @@ export default async function DashboardPage({
     interval: typeof resolvedSearchParams.interval === 'string' ? resolvedSearchParams.interval : undefined,
     species: typeof resolvedSearchParams.species === 'string' ? resolvedSearchParams.species : undefined,
     year: typeof resolvedSearchParams.year === 'string' ? resolvedSearchParams.year : undefined,
+    platform: typeof resolvedSearchParams.platform === 'string' ? resolvedSearchParams.platform : undefined,
   };
 
   const data = await getDashboardData(filters);
@@ -43,7 +44,11 @@ export default async function DashboardPage({
         />
         
         {/* Filter Bar */}
-        <DashboardFilters availableSpecies={data.availableSpecies} availableYears={data.availableYears} />
+        <DashboardFilters 
+          availableSpecies={data.availableSpecies} 
+          availableYears={data.availableYears} 
+          availablePlatforms={data.availablePlatforms} 
+        />
 
         {/* Time Series Area Chart */}
         <TimeSeriesAreaChart data={data.timeSeriesData} />

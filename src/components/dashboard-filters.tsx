@@ -8,9 +8,10 @@ import { useTranslations } from "next-intl";
 interface DashboardFiltersProps {
   availableSpecies: string[];
   availableYears: string[];
+  availablePlatforms?: string[];
 }
 
-export function DashboardFilters({ availableSpecies, availableYears }: DashboardFiltersProps) {
+export function DashboardFilters({ availableSpecies, availableYears, availablePlatforms = [] }: DashboardFiltersProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -20,6 +21,7 @@ export function DashboardFilters({ availableSpecies, availableYears }: Dashboard
   const currentInterval = searchParams.get("interval") || "daily";
   const currentSpecies = searchParams.get("species") || "all";
   const currentYear = searchParams.get("year") || "all";
+  const currentPlatform = searchParams.get("platform") || "all";
 
   const createQueryString = useCallback(
     (name: string, value: string) => {
@@ -45,15 +47,16 @@ export function DashboardFilters({ availableSpecies, availableYears }: Dashboard
 
   const displayYear = currentYear === "all" ? t("filters.allTime").toLowerCase() : currentYear;
   const displaySpecies = currentSpecies === "all" ? t("filters.allSpecies").toLowerCase() : currentSpecies;
+  const displayPlatform = currentPlatform === "all" ? "all platforms" : currentPlatform;
   const displayInterval = t(`filters.${currentInterval}` as any).toLowerCase();
 
   const plainEnglishSummary = tReporting("plainEnglish", {
     year: displayYear,
     species: displaySpecies,
     interval: displayInterval
-  });
+  }) + (currentPlatform !== "all" ? ` on ${currentPlatform}` : "");
 
-  const hasFilters = currentInterval !== "daily" || currentSpecies !== "all" || currentYear !== "all";
+  const hasFilters = currentInterval !== "daily" || currentSpecies !== "all" || currentYear !== "all" || currentPlatform !== "all";
 
   return (
     <Card className="flex flex-col shadow-sm border-slate-200 bg-slate-50/50">
@@ -112,6 +115,22 @@ export function DashboardFilters({ availableSpecies, availableYears }: Dashboard
             ))}
           </select>
         </div>
+
+        {availablePlatforms.length > 0 && (
+          <div className="flex flex-col gap-1.5 w-full sm:w-auto">
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Platform</label>
+            <select 
+              value={currentPlatform}
+              onChange={(e) => handleFilterChange("platform", e.target.value)}
+              className="h-10 px-3 rounded-md border border-slate-300 bg-white text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 w-full sm:w-[150px] capitalize"
+            >
+              <option value="all">All Platforms</option>
+              {availablePlatforms.map(p => (
+                <option key={p} value={p} className="capitalize">{p}</option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
     </Card>
   );

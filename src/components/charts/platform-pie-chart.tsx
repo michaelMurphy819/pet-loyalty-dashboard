@@ -4,6 +4,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recha
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useTranslations } from "next-intl";
 import { Info } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 interface DataItem {
   name: string;
@@ -15,7 +16,22 @@ const COLORS = ["#0ea5e9", "#10b981", "#6366f1", "#f59e0b", "#ec4899"];
 export function PlatformPieChart({ data }: { data: DataItem[] }) {
   const t = useTranslations("Dashboard");
   const tReporting = useTranslations("Dashboard.reporting");
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   if (!data || data.length === 0) return null;
+
+  const handlePieClick = (data: any) => {
+    if (data && data.name && data.name !== "Other") {
+      const currentParams = new URLSearchParams(searchParams?.toString() || "");
+      if (currentParams.get("platform") === data.name) {
+        currentParams.delete("platform");
+      } else {
+        currentParams.set("platform", data.name);
+      }
+      router.push(`?${currentParams.toString()}`, { scroll: false });
+    }
+  };
 
   const total = data.reduce((acc, curr) => acc + curr.value, 0);
   const threshold = total * 0.0005; // 0.05%
@@ -60,6 +76,8 @@ export function PlatformPieChart({ data }: { data: DataItem[] }) {
                 outerRadius={90}
                 paddingAngle={2}
                 dataKey="value"
+                onClick={handlePieClick}
+                style={{ cursor: "pointer" }}
               >
                 {processedData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -72,6 +90,9 @@ export function PlatformPieChart({ data }: { data: DataItem[] }) {
             </PieChart>
           </ResponsiveContainer>
         </div>
+        <p className="text-xs text-slate-400 text-center mt-6">
+          Click on a slice to filter the dashboard by platform. Click again to clear.
+        </p>
       </CardContent>
     </Card>
   );

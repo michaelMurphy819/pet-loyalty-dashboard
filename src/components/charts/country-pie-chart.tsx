@@ -2,6 +2,7 @@
 
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useRouter, useSearchParams } from "next/navigation";
 
 interface DataItem {
   name: string;
@@ -11,12 +12,28 @@ interface DataItem {
 interface CountryPieChartProps {
   data: DataItem[];
   title: string;
+  filterKey?: string;
 }
 
 const COLORS = ["#6366f1", "#a855f7", "#ec4899", "#f43f5e", "#f59e0b", "#10b981", "#3b82f6"];
 
-export function CountryPieChart({ data, title }: CountryPieChartProps) {
+export function CountryPieChart({ data, title, filterKey }: CountryPieChartProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   if (!data || data.length === 0) return null;
+
+  const handlePieClick = (data: any) => {
+    if (filterKey && data && data.name && data.name !== "Other") {
+      const currentParams = new URLSearchParams(searchParams?.toString() || "");
+      if (currentParams.get(filterKey) === data.name) {
+        currentParams.delete(filterKey);
+      } else {
+        currentParams.set(filterKey, data.name);
+      }
+      router.push(`?${currentParams.toString()}`, { scroll: false });
+    }
+  };
 
   const total = data.reduce((acc, curr) => acc + curr.value, 0);
   const threshold = total * 0.0005; // 0.05%
@@ -56,6 +73,8 @@ export function CountryPieChart({ data, title }: CountryPieChartProps) {
                 outerRadius={90}
                 paddingAngle={2}
                 dataKey="value"
+                onClick={filterKey ? handlePieClick : undefined}
+                style={{ cursor: filterKey ? "pointer" : "default" }}
               >
                 {processedData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -68,6 +87,11 @@ export function CountryPieChart({ data, title }: CountryPieChartProps) {
             </PieChart>
           </ResponsiveContainer>
         </div>
+        {filterKey && (
+          <p className="text-xs text-slate-400 text-center mt-6">
+            Click on a slice to filter the dashboard. Click again to clear.
+          </p>
+        )}
       </CardContent>
     </Card>
   );

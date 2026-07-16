@@ -3,7 +3,7 @@ import { petAdoptions } from "@/lib/db/schema";
 import { count, sql, gte, eq, desc, and, isNotNull } from "drizzle-orm";
 
 export async function getDashboardData(
-  filters: { interval?: string; species?: string; year?: string } = {}
+  filters: { interval?: string; species?: string; year?: string; platform?: string } = {}
 ) {
   try {
     const baseConditions = [];
@@ -13,6 +13,9 @@ export async function getDashboardData(
     }
     if (filters.year && filters.year !== 'all') {
       baseConditions.push(sql`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp}) = ${Number(filters.year)}`);
+    }
+    if (filters.platform && filters.platform !== 'all') {
+      baseConditions.push(eq(petAdoptions.platform, filters.platform));
     }
 
     const whereClause = baseConditions.length > 0 ? and(...baseConditions) : undefined;
@@ -148,6 +151,11 @@ export async function getDashboardData(
       .groupBy(sql`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp})`)
       .orderBy(desc(sql`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp})`));
 
+    const availablePlatformsRaw = await db
+      .select({ name: petAdoptions.platform })
+      .from(petAdoptions)
+      .groupBy(petAdoptions.platform);
+
     return {
       totalAdoptions,
       totalAdoptionsDelta,
@@ -163,6 +171,7 @@ export async function getDashboardData(
       countryHeatmapData,
       availableSpecies: availableSpeciesRaw.map(d => d.name as string).filter(Boolean),
       availableYears: availableYearsRaw.map(d => d.year.toString()).filter(Boolean),
+      availablePlatforms: availablePlatformsRaw.map(d => d.name as string).filter(Boolean),
     };
   } catch (error) {
     console.error("Database query failed", error);
@@ -177,13 +186,14 @@ export async function getDashboardData(
       countryHeatmapData: {},
       availableSpecies: [],
       availableYears: [],
+      availablePlatforms: [],
     };
   }
 }
 
 export async function getCountryDashboardData(
   countryCode: string,
-  filters: { interval?: string; species?: string; year?: string } = {}
+  filters: { interval?: string; species?: string; year?: string; platform?: string } = {}
 ) {
   try {
     const baseConditions = [eq(petAdoptions.countryCode, countryCode.toUpperCase())];
@@ -193,6 +203,9 @@ export async function getCountryDashboardData(
     }
     if (filters.year && filters.year !== 'all') {
       baseConditions.push(sql`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp}) = ${Number(filters.year)}`);
+    }
+    if (filters.platform && filters.platform !== 'all') {
+      baseConditions.push(eq(petAdoptions.platform, filters.platform));
     }
 
     const whereClause = and(...baseConditions);
@@ -241,11 +254,11 @@ export async function getCountryDashboardData(
       .groupBy(petAdoptions.species)
       .orderBy(sql`count(*) DESC`);
 
-    const stateDataRaw = await db
-      .select({ name: petAdoptions.stateCode, value: count() })
+    const shelterDataRaw = await db
+      .select({ name: petAdoptions.organizationName, value: count() })
       .from(petAdoptions)
-      .where(whereClause)
-      .groupBy(petAdoptions.stateCode)
+      .where(and(whereClause, isNotNull(petAdoptions.organizationName)))
+      .groupBy(petAdoptions.organizationName)
       .orderBy(sql`count(*) DESC`)
       .limit(5);
 
@@ -270,16 +283,23 @@ export async function getCountryDashboardData(
       .groupBy(sql`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp})`)
       .orderBy(desc(sql`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp})`));
 
+    const availablePlatformsRaw = await db
+      .select({ name: petAdoptions.platform })
+      .from(petAdoptions)
+      .where(eq(petAdoptions.countryCode, countryCode.toUpperCase()))
+      .groupBy(petAdoptions.platform);
+
     return {
       totalAdoptions,
       timeSeriesData: timeSeriesDataResult,
       recentAdoptions,
       platformData: platformDataRaw.filter(d => d.name).map(d => ({ name: d.name as string, value: Number(d.value) })),
       speciesData: speciesDataRaw.filter(d => d.name).map(d => ({ name: d.name as string, value: Number(d.value) })),
-      stateData: stateDataRaw.filter(d => d.name).map(d => ({ name: d.name as string, value: Number(d.value) })),
+      shelterData: shelterDataRaw.filter(d => d.name).map(d => ({ name: d.name as string, value: Number(d.value) })),
       cityData: cityDataRaw.filter(d => d.name).map(d => ({ name: d.name as string, value: Number(d.value) })),
       availableSpecies: availableSpeciesRaw.map(d => d.name as string).filter(Boolean),
       availableYears: availableYearsRaw.map(d => d.year.toString()).filter(Boolean),
+      availablePlatforms: availablePlatformsRaw.map(d => d.name as string).filter(Boolean),
     };
   } catch (error) {
     console.error("Database query failed for country", error);
@@ -289,10 +309,11 @@ export async function getCountryDashboardData(
       recentAdoptions: [],
       platformData: [],
       speciesData: [],
-      stateData: [],
+      shelterData: [],
       cityData: [],
       availableSpecies: [],
       availableYears: [],
+      availablePlatforms: [],
     };
   }
 }
@@ -315,5 +336,130 @@ export async function getCityDirectoryData() {
   } catch (error) {
     console.error("Database query failed for city directory", error);
     return [];
+  }
+}
+
+export async function getCityDashboardData(
+  countryCode: string,
+  stateCode: string,
+  city: string,
+  filters: { interval?: string; species?: string; year?: string; platform?: string } = {}
+) {
+  try {
+    const baseConditions = [
+      eq(petAdoptions.countryCode, countryCode.toUpperCase()),
+      eq(petAdoptions.city, city)
+    ];
+    if (stateCode && stateCode !== 'none' && stateCode !== '_') {
+      baseConditions.push(eq(petAdoptions.stateCode, stateCode));
+    }
+    
+    if (filters.species && filters.species !== 'all') {
+      baseConditions.push(eq(petAdoptions.species, filters.species));
+    }
+    if (filters.year && filters.year !== 'all') {
+      baseConditions.push(sql`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp}) = ${Number(filters.year)}`);
+    }
+    if (filters.platform && filters.platform !== 'all') {
+      baseConditions.push(eq(petAdoptions.platform, filters.platform));
+    }
+
+    const whereClause = and(...baseConditions);
+
+    const totalAdoptionsResult = await db
+      .select({ count: count() })
+      .from(petAdoptions)
+      .where(whereClause);
+    const totalAdoptions = totalAdoptionsResult[0].count;
+
+    let dateSql = sql<string>`DATE(${petAdoptions.adoptionTimestamp})::text`;
+    if (filters.interval === 'weekly') {
+      dateSql = sql<string>`DATE_TRUNC('week', ${petAdoptions.adoptionTimestamp})::date::text`;
+    } else if (filters.interval === 'monthly') {
+      dateSql = sql<string>`DATE_TRUNC('month', ${petAdoptions.adoptionTimestamp})::date::text`;
+    }
+
+    const timeSeriesDataResult = await db
+      .select({
+        date: dateSql,
+        adoptions: count(),
+      })
+      .from(petAdoptions)
+      .where(whereClause)
+      .groupBy(dateSql)
+      .orderBy(sql`${dateSql} ASC`);
+
+    const recentAdoptions = await db
+      .select()
+      .from(petAdoptions)
+      .where(whereClause)
+      .orderBy(desc(petAdoptions.adoptionTimestamp))
+      .limit(500);
+
+    const platformDataRaw = await db
+      .select({ name: petAdoptions.platform, value: count() })
+      .from(petAdoptions)
+      .where(whereClause)
+      .groupBy(petAdoptions.platform)
+      .orderBy(sql`count(*) DESC`);
+
+    const speciesDataRaw = await db
+      .select({ name: petAdoptions.species, value: count() })
+      .from(petAdoptions)
+      .where(whereClause)
+      .groupBy(petAdoptions.species)
+      .orderBy(sql`count(*) DESC`);
+
+    const shelterDataRaw = await db
+      .select({ name: petAdoptions.organizationName, value: count() })
+      .from(petAdoptions)
+      .where(and(whereClause, isNotNull(petAdoptions.organizationName)))
+      .groupBy(petAdoptions.organizationName)
+      .orderBy(sql`count(*) DESC`)
+      .limit(5);
+
+    const availableSpeciesRaw = await db
+      .select({ name: petAdoptions.species })
+      .from(petAdoptions)
+      .where(and(eq(petAdoptions.countryCode, countryCode.toUpperCase()), eq(petAdoptions.city, city)))
+      .groupBy(petAdoptions.species);
+      
+    const availableYearsRaw = await db
+      .select({ year: sql<number>`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp})::int` })
+      .from(petAdoptions)
+      .where(and(eq(petAdoptions.countryCode, countryCode.toUpperCase()), eq(petAdoptions.city, city)))
+      .groupBy(sql`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp})`)
+      .orderBy(desc(sql`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp})`));
+
+    const availablePlatformsRaw = await db
+      .select({ name: petAdoptions.platform })
+      .from(petAdoptions)
+      .where(and(eq(petAdoptions.countryCode, countryCode.toUpperCase()), eq(petAdoptions.city, city)))
+      .groupBy(petAdoptions.platform);
+
+    return {
+      totalAdoptions,
+      timeSeriesData: timeSeriesDataResult,
+      recentAdoptions,
+      platformData: platformDataRaw.filter(d => d.name).map(d => ({ name: d.name as string, value: Number(d.value) })),
+      speciesData: speciesDataRaw.filter(d => d.name).map(d => ({ name: d.name as string, value: Number(d.value) })),
+      shelterData: shelterDataRaw.filter(d => d.name).map(d => ({ name: d.name as string, value: Number(d.value) })),
+      availableSpecies: availableSpeciesRaw.map(d => d.name as string).filter(Boolean),
+      availableYears: availableYearsRaw.map(d => d.year.toString()).filter(Boolean),
+      availablePlatforms: availablePlatformsRaw.map(d => d.name as string).filter(Boolean),
+    };
+  } catch (error) {
+    console.error("Database query failed for city dashboard", error);
+    return {
+      totalAdoptions: 0,
+      timeSeriesData: [],
+      recentAdoptions: [],
+      platformData: [],
+      speciesData: [],
+      shelterData: [],
+      availableSpecies: [],
+      availableYears: [],
+      availablePlatforms: [],
+    };
   }
 }
