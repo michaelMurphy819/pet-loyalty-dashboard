@@ -33,26 +33,7 @@ export function PlatformPieChart({ data }: { data: DataItem[] }) {
     }
   };
 
-  const total = data.reduce((acc, curr) => acc + curr.value, 0);
-  const threshold = total * 0.0005; // 0.05%
-
-  const processedData = data.reduce((acc, curr) => {
-    if (curr.value < threshold) {
-      const otherItem = acc.find(item => item.name === 'Other');
-      if (otherItem) {
-        otherItem.value += curr.value;
-      } else {
-        acc.push({ name: 'Other', value: curr.value });
-      }
-    } else {
-      acc.push({ ...curr });
-    }
-    return acc;
-  }, [] as DataItem[]).sort((a, b) => {
-    if (a.name === 'Other') return 1;
-    if (b.name === 'Other') return -1;
-    return b.value - a.value;
-  });
+  const processedData = [...data].sort((a, b) => b.value - a.value);
 
   return (
     <Card className="shadow-sm border-slate-200">
@@ -74,7 +55,7 @@ export function PlatformPieChart({ data }: { data: DataItem[] }) {
                 cy="50%"
                 innerRadius={60}
                 outerRadius={90}
-                paddingAngle={2}
+                paddingAngle={0}
                 dataKey="value"
                 onClick={handlePieClick}
                 style={{ cursor: "pointer" }}

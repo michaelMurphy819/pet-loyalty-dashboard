@@ -1,4 +1,4 @@
-import { pgSchema, serial, varchar, timestamp } from "drizzle-orm/pg-core";
+import { pgSchema, serial, varchar, timestamp, jsonb, index } from "drizzle-orm/pg-core";
 
 export const analyticsSchema = pgSchema("analytics");
 
@@ -15,5 +15,12 @@ export const petAdoptions = analyticsSchema.table("pet_adoptions", {
   primaryBreed: varchar("primary_breed", { length: 100 }),
   secondaryBreed: varchar("secondary_breed", { length: 100 }),
   organizationName: varchar("organization_name", { length: 255 }),
+  externalMetadata: jsonb("external_metadata"),
   createdAt: timestamp("created_at"),
-});
+}, (table) => ({
+  countryIdx: index("idx_country_code").on(table.countryCode),
+  platformIdx: index("idx_platform").on(table.platform),
+  speciesIdx: index("idx_species").on(table.species),
+  cityIdx: index("idx_city").on(table.city),
+  orgIdx: index("idx_organization_name").on(table.organizationName),
+}));

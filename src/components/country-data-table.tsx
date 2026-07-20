@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Search } from "lucide-react";
+import { Link } from "@/i18n/routing";
 
 export function CountryDataTable({ data }: { data: any[] }) {
   const [search, setSearch] = useState("");
@@ -71,7 +72,17 @@ export function CountryDataTable({ data }: { data: any[] }) {
                       </span>
                     </td>
                     <td className="px-6 py-3 text-slate-600">
-                      {row.city ? `${row.city}, ${row.stateCode}` : (row.organizationName || "Unknown")}
+                      {row.city ? (
+                        <Link href={`/dashboard/cities/${row.countryCode}/${encodeURIComponent(row.stateCode || '_')}/${encodeURIComponent(row.city)}`} className="text-indigo-600 hover:underline">
+                          {row.city}, {row.stateCode}
+                        </Link>
+                      ) : row.organizationName ? (
+                        <Link href={`/dashboard/organizations/${encodeURIComponent(row.organizationName)}`} className="text-indigo-600 hover:underline">
+                          {row.organizationName}
+                        </Link>
+                      ) : (
+                        "Unknown"
+                      )}
                     </td>
                     <td className="px-6 py-3 text-slate-600 text-right">
                       {new Date(row.adoptionTimestamp).toLocaleDateString()}

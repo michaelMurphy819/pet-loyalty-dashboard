@@ -463,3 +463,141 @@ export async function getCityDashboardData(
     };
   }
 }
+
+export async function getOrganizationDirectoryData() {
+  try {
+    const data = await db
+      .select({
+        organizationName: petAdoptions.organizationName,
+        totalAdoptions: count().as("total_adoptions"),
+        latestAdoption: sql<string>`max(${petAdoptions.adoptionTimestamp})`.as("latest_adoption"),
+      })
+      .from(petAdoptions)
+      .where(isNotNull(petAdoptions.organizationName))
+      .groupBy(petAdoptions.organizationName)
+      .orderBy(desc(count()));
+    return data;
+  } catch (error) {
+    console.error("Database query failed for org directory", error);
+    return [];
+  }
+}
+
+export async function getOrganizationDashboardData(
+  orgName: string,
+  filters: { interval?: string; species?: string; year?: string; platform?: string } = {}
+) {
+  try {
+    const baseConditions = [
+      eq(petAdoptions.organizationName, orgName)
+    ];
+    
+    if (filters.species && filters.species !== 'all') {
+      baseConditions.push(eq(petAdoptions.species, filters.species));
+    }
+    if (filters.year && filters.year !== 'all') {
+      baseConditions.push(sql`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp}) = ${Number(filters.year)}`);
+    }
+    if (filters.platform && filters.platform !== 'all') {
+      baseConditions.push(eq(petAdoptions.platform, filters.platform));
+    }
+
+    const whereClause = and(...baseConditions);
+
+    const totalAdoptionsResult = await db
+      .select({ count: count() })
+      .from(petAdoptions)
+      .where(whereClause);
+    const totalAdoptions = totalAdoptionsResult[0].count;
+
+    let dateSql = sql<string>`DATE(${petAdoptions.adoptionTimestamp})::text`;
+    if (filters.interval === 'weekly') {
+      dateSql = sql<string>`DATE_TRUNC('week', ${petAdoptions.adoptionTimestamp})::date::text`;
+    } else if (filters.interval === 'monthly') {
+      dateSql = sql<string>`DATE_TRUNC('month', ${petAdoptions.adoptionTimestamp})::date::text`;
+    }
+
+    const timeSeriesDataResult = await db
+      .select({
+        date: dateSql,
+        adoptions: count(),
+      })
+      .from(petAdoptions)
+      .where(whereClause)
+      .groupBy(dateSql)
+      .orderBy(sql`${dateSql} ASC`);
+
+    const recentAdoptions = await db
+      .select()
+      .from(petAdoptions)
+      .where(whereClause)
+      .orderBy(desc(petAdoptions.adoptionTimestamp))
+      .limit(500);
+
+    const platformDataRaw = await db
+      .select({ name: petAdoptions.platform, value: count() })
+      .from(petAdoptions)
+      .where(whereClause)
+      .groupBy(petAdoptions.platform)
+      .orderBy(sql`count(*) DESC`);
+
+    const speciesDataRaw = await db
+      .select({ name: petAdoptions.species, value: count() })
+      .from(petAdoptions)
+      .where(whereClause)
+      .groupBy(petAdoptions.species)
+      .orderBy(sql`count(*) DESC`);
+
+    const cityDataRaw = await db
+      .select({ name: petAdoptions.city, value: count() })
+      .from(petAdoptions)
+      .where(and(whereClause, isNotNull(petAdoptions.city)))
+      .groupBy(petAdoptions.city)
+      .orderBy(sql`count(*) DESC`)
+      .limit(5);
+
+    const availableSpeciesRaw = await db
+      .select({ name: petAdoptions.species })
+      .from(petAdoptions)
+      .where(eq(petAdoptions.organizationName, orgName))
+      .groupBy(petAdoptions.species);
+      
+    const availableYearsRaw = await db
+      .select({ year: sql<number>`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp})::int` })
+      .from(petAdoptions)
+      .where(eq(petAdoptions.organizationName, orgName))
+      .groupBy(sql`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp})`)
+      .orderBy(desc(sql`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp})`));
+
+    const availablePlatformsRaw = await db
+      .select({ name: petAdoptions.platform })
+      .from(petAdoptions)
+      .where(eq(petAdoptions.organizationName, orgName))
+      .groupBy(petAdoptions.platform);
+
+    return {
+      totalAdoptions,
+      timeSeriesData: timeSeriesDataResult,
+      recentAdoptions,
+      platformData: platformDataRaw.filter(d => d.name).map(d => ({ name: d.name as string, value: Number(d.value) })),
+      speciesData: speciesDataRaw.filter(d => d.name).map(d => ({ name: d.name as string, value: Number(d.value) })),
+      cityData: cityDataRaw.filter(d => d.name).map(d => ({ name: d.name as string, value: Number(d.value) })),
+      availableSpecies: availableSpeciesRaw.map(d => d.name as string).filter(Boolean),
+      availableYears: availableYearsRaw.map(d => d.year.toString()).filter(Boolean),
+      availablePlatforms: availablePlatformsRaw.map(d => d.name as string).filter(Boolean),
+    };
+  } catch (error) {
+    console.error("Database query failed for org dashboard", error);
+    return {
+      totalAdoptions: 0,
+      timeSeriesData: [],
+      recentAdoptions: [],
+      platformData: [],
+      speciesData: [],
+      cityData: [],
+      availableSpecies: [],
+      availableYears: [],
+      availablePlatforms: [],
+    };
+  }
+}
