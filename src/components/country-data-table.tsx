@@ -1,18 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Search } from "lucide-react";
 import { Link } from "@/i18n/routing";
 
-export function CountryDataTable({ data }: { data: any[] }) {
+export const CountryDataTable = React.memo(function CountryDataTable({ data }: { data: any[] }) {
   const [search, setSearch] = useState("");
 
-  const filteredData = data.filter(item => {
-    if (!search) return true;
-    
-    // Split search into individual terms (e.g., "ca dog" -> ["ca", "dog"])
-    const searchTerms = search.toLowerCase().split(' ').filter(Boolean);
+  const filteredData = useMemo(() => {
+    return data.filter(item => {
+      if (!search) return true;
+      
+      const searchTerms = search.toLowerCase().split(' ').filter(Boolean);
     
     // Create a massive string of all searchable fields for this row
     const searchableString = [
@@ -27,7 +27,8 @@ export function CountryDataTable({ data }: { data: any[] }) {
 
     // Ensure EVERY term the user typed is found somewhere in the row's data
     return searchTerms.every(term => searchableString.includes(term));
-  });
+    });
+  }, [data, search]);
 
   return (
     <Card className="col-span-full shadow-sm border-slate-200">
@@ -99,4 +100,4 @@ export function CountryDataTable({ data }: { data: any[] }) {
       </CardContent>
     </Card>
   );
-}
+});

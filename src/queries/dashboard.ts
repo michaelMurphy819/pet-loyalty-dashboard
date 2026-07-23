@@ -1,10 +1,11 @@
 import { db } from "@/lib/db";
 import { petAdoptions } from "@/lib/db/schema";
 import { count, sql, gte, eq, desc, and, isNotNull } from "drizzle-orm";
+import { unstable_cache } from "next/cache";
 
-export async function getDashboardData(
+export const getDashboardData = unstable_cache(async (
   filters: { interval?: string; species?: string; year?: string; platform?: string } = {}
-) {
+) => {
   try {
     const baseConditions = [];
     
@@ -20,34 +21,41 @@ export async function getDashboardData(
 
     const whereClause = baseConditions.length > 0 ? and(...baseConditions) : undefined;
 
-    // 1. Total Adoptions
-    const totalAdoptionsResult = await db
-      .select({ count: count() })
-      .from(petAdoptions)
-      .where(whereClause);
+    let dateSql = sql<string>`DATE(${petAdoptions.adoptionTimestamp})::text`;
+    if (filters.interval === 'weekly') {
+      dateSql = sql<string>`DATE_TRUNC('week', ${petAdoptions.adoptionTimestamp})::date::text`;
+    } else if (filters.interval === 'monthly') {
+      dateSql = sql<string>`DATE_TRUNC('month', ${petAdoptions.adoptionTimestamp})::date::text`;
+    }
+
+    const [
+      totalAdoptionsResult,
+      thisWeekResult,
+      lastWeekResult,
+      timeSeriesDataResult,
+      platformData,
+      speciesData,
+      countryDataResult,
+      availableSpeciesRaw,
+      availableYearsRaw,
+      availablePlatformsRaw
+    ] = await Promise.all([
+      db.select({ count: count() }).from(petAdoptions).where(whereClause),
+      db.select({ count: count() }).from(petAdoptions).where(whereClause ? and(whereClause, gte(petAdoptions.adoptionTimestamp, sql`NOW() - INTERVAL '7 days'`)) : gte(petAdoptions.adoptionTimestamp, sql`NOW() - INTERVAL '7 days'`)),
+      db.select({ count: count() }).from(petAdoptions).where(whereClause ? and(whereClause, gte(petAdoptions.adoptionTimestamp, sql`NOW() - INTERVAL '14 days'`), sql`${petAdoptions.adoptionTimestamp} < NOW() - INTERVAL '7 days'`) : and(gte(petAdoptions.adoptionTimestamp, sql`NOW() - INTERVAL '14 days'`), sql`${petAdoptions.adoptionTimestamp} < NOW() - INTERVAL '7 days'`)),
+      db.select({ date: dateSql, adoptions: count() }).from(petAdoptions).where(whereClause).groupBy(dateSql).orderBy(sql`${dateSql} ASC`),
+      db.select({ name: petAdoptions.platform, value: count() }).from(petAdoptions).where(whereClause).groupBy(petAdoptions.platform).orderBy(sql`count(*) DESC`),
+      db.select({ name: petAdoptions.species, value: count() }).from(petAdoptions).where(whereClause).groupBy(petAdoptions.species).orderBy(sql`count(*) DESC`),
+      db.select({ country: petAdoptions.countryCode, count: count() }).from(petAdoptions).where(whereClause).groupBy(petAdoptions.countryCode),
+      db.select({ name: petAdoptions.species }).from(petAdoptions).groupBy(petAdoptions.species),
+      db.select({ year: sql<number>`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp})::int` }).from(petAdoptions).groupBy(sql`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp})`).orderBy(desc(sql`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp})`)),
+      db.select({ name: petAdoptions.platform }).from(petAdoptions).groupBy(petAdoptions.platform)
+    ]);
+
     const totalAdoptions = totalAdoptionsResult[0].count;
-
-    // 2. Adoptions This Week (last 7 days for simplicity)
-    const thisWeekResult = await db
-      .select({ count: count() })
-      .from(petAdoptions)
-      .where(
-        whereClause
-          ? and(whereClause, gte(petAdoptions.adoptionTimestamp, sql`NOW() - INTERVAL '7 days'`))
-          : gte(petAdoptions.adoptionTimestamp, sql`NOW() - INTERVAL '7 days'`)
-      );
     const adoptionsThisWeek = thisWeekResult[0].count;
-
-    // Benchmarking for Adoptions This Week
-    const lastWeekResult = await db
-      .select({ count: count() })
-      .from(petAdoptions)
-      .where(
-        whereClause
-          ? and(whereClause, gte(petAdoptions.adoptionTimestamp, sql`NOW() - INTERVAL '14 days'`), sql`${petAdoptions.adoptionTimestamp} < NOW() - INTERVAL '7 days'`)
-          : and(gte(petAdoptions.adoptionTimestamp, sql`NOW() - INTERVAL '14 days'`), sql`${petAdoptions.adoptionTimestamp} < NOW() - INTERVAL '7 days'`)
-      );
     const adoptionsLastWeek = lastWeekResult[0].count;
+
     let adoptionsThisWeekDelta = 0;
     if (adoptionsLastWeek > 0) {
       adoptionsThisWeekDelta = Math.round(((adoptionsThisWeek - adoptionsLastWeek) / adoptionsLastWeek) * 100);
@@ -56,24 +64,6 @@ export async function getDashboardData(
     }
 
     let totalAdoptionsDelta = 12; // Static placeholder for executive demo YoY
-
-    // 3. Time Series Data
-    let dateSql = sql<string>`DATE(${petAdoptions.adoptionTimestamp})::text`;
-    if (filters.interval === 'weekly') {
-      dateSql = sql<string>`DATE_TRUNC('week', ${petAdoptions.adoptionTimestamp})::date::text`;
-    } else if (filters.interval === 'monthly') {
-      dateSql = sql<string>`DATE_TRUNC('month', ${petAdoptions.adoptionTimestamp})::date::text`;
-    }
-
-    const timeSeriesDataResult = await db
-      .select({
-        date: dateSql,
-        adoptions: count(),
-      })
-      .from(petAdoptions)
-      .where(whereClause)
-      .groupBy(dateSql)
-      .orderBy(sql`${dateSql} ASC`);
 
     // Add Forecast (Simple Moving Average Projection)
     const timeSeriesWithForecast = timeSeriesDataResult.map(d => ({ ...d, forecast: null as number | null }));
@@ -100,61 +90,12 @@ export async function getDashboardData(
       timeSeriesWithForecast[timeSeriesDataResult.length - 1].forecast = Number(timeSeriesWithForecast[timeSeriesDataResult.length - 1].adoptions);
     }
 
-    // 4. Adoptions by Platform
-    const platformData = await db
-      .select({
-        name: petAdoptions.platform,
-        value: count(),
-      })
-      .from(petAdoptions)
-      .where(whereClause)
-      .groupBy(petAdoptions.platform)
-      .orderBy(sql`count(*) DESC`);
-
-    // 5. Adoptions by Species
-    const speciesData = await db
-      .select({
-        name: petAdoptions.species,
-        value: count(),
-      })
-      .from(petAdoptions)
-      .where(whereClause)
-      .groupBy(petAdoptions.species)
-      .orderBy(sql`count(*) DESC`);
-
-    // 6. Adoptions by Country (Heatmap)
-    const countryDataResult = await db
-      .select({
-        country: petAdoptions.countryCode,
-        count: count(),
-      })
-      .from(petAdoptions)
-      .where(whereClause)
-      .groupBy(petAdoptions.countryCode);
-
     const countryHeatmapData = countryDataResult.reduce((acc, row) => {
       if (row.country) {
         acc[row.country.toUpperCase()] = row.count;
       }
       return acc;
     }, {} as Record<string, number>);
-
-    // Fetch unique species and cities for the dropdown menus globally
-    const availableSpeciesRaw = await db
-      .select({ name: petAdoptions.species })
-      .from(petAdoptions)
-      .groupBy(petAdoptions.species);
-      
-    const availableYearsRaw = await db
-      .select({ year: sql<number>`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp})::int` })
-      .from(petAdoptions)
-      .groupBy(sql`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp})`)
-      .orderBy(desc(sql`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp})`));
-
-    const availablePlatformsRaw = await db
-      .select({ name: petAdoptions.platform })
-      .from(petAdoptions)
-      .groupBy(petAdoptions.platform);
 
     return {
       totalAdoptions,
@@ -189,12 +130,12 @@ export async function getDashboardData(
       availablePlatforms: [],
     };
   }
-}
+}, ['dashboard-data-global'], { revalidate: 3600 });
 
-export async function getCountryDashboardData(
+export const getCountryDashboardData = unstable_cache(async (
   countryCode: string,
   filters: { interval?: string; species?: string; year?: string; platform?: string } = {}
-) {
+) => {
   try {
     const baseConditions = [eq(petAdoptions.countryCode, countryCode.toUpperCase())];
     
@@ -210,12 +151,6 @@ export async function getCountryDashboardData(
 
     const whereClause = and(...baseConditions);
 
-    const totalAdoptionsResult = await db
-      .select({ count: count() })
-      .from(petAdoptions)
-      .where(whereClause);
-    const totalAdoptions = totalAdoptionsResult[0].count;
-
     let dateSql = sql<string>`DATE(${petAdoptions.adoptionTimestamp})::text`;
     if (filters.interval === 'weekly') {
       dateSql = sql<string>`DATE_TRUNC('week', ${petAdoptions.adoptionTimestamp})::date::text`;
@@ -223,71 +158,31 @@ export async function getCountryDashboardData(
       dateSql = sql<string>`DATE_TRUNC('month', ${petAdoptions.adoptionTimestamp})::date::text`;
     }
 
-    const timeSeriesDataResult = await db
-      .select({
-        date: dateSql,
-        adoptions: count(),
-      })
-      .from(petAdoptions)
-      .where(whereClause)
-      .groupBy(dateSql)
-      .orderBy(sql`${dateSql} ASC`);
+    const [
+      totalAdoptionsResult,
+      timeSeriesDataResult,
+      recentAdoptions,
+      platformDataRaw,
+      speciesDataRaw,
+      shelterDataRaw,
+      cityDataRaw,
+      availableSpeciesRaw,
+      availableYearsRaw,
+      availablePlatformsRaw
+    ] = await Promise.all([
+      db.select({ count: count() }).from(petAdoptions).where(whereClause),
+      db.select({ date: dateSql, adoptions: count() }).from(petAdoptions).where(whereClause).groupBy(dateSql).orderBy(sql`${dateSql} ASC`),
+      db.select().from(petAdoptions).where(whereClause).orderBy(desc(petAdoptions.adoptionTimestamp)).limit(500),
+      db.select({ name: petAdoptions.platform, value: count() }).from(petAdoptions).where(whereClause).groupBy(petAdoptions.platform).orderBy(sql`count(*) DESC`),
+      db.select({ name: petAdoptions.species, value: count() }).from(petAdoptions).where(whereClause).groupBy(petAdoptions.species).orderBy(sql`count(*) DESC`),
+      db.select({ name: petAdoptions.organizationName, value: count() }).from(petAdoptions).where(and(whereClause, isNotNull(petAdoptions.organizationName))).groupBy(petAdoptions.organizationName).orderBy(sql`count(*) DESC`).limit(5),
+      db.select({ name: petAdoptions.city, value: count() }).from(petAdoptions).where(whereClause).groupBy(petAdoptions.city).orderBy(sql`count(*) DESC`).limit(5),
+      db.select({ name: petAdoptions.species }).from(petAdoptions).where(eq(petAdoptions.countryCode, countryCode.toUpperCase())).groupBy(petAdoptions.species),
+      db.select({ year: sql<number>`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp})::int` }).from(petAdoptions).where(eq(petAdoptions.countryCode, countryCode.toUpperCase())).groupBy(sql`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp})`).orderBy(desc(sql`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp})`)),
+      db.select({ name: petAdoptions.platform }).from(petAdoptions).where(eq(petAdoptions.countryCode, countryCode.toUpperCase())).groupBy(petAdoptions.platform)
+    ]);
 
-    const recentAdoptions = await db
-      .select()
-      .from(petAdoptions)
-      .where(whereClause)
-      .orderBy(desc(petAdoptions.adoptionTimestamp))
-      .limit(500);
-
-    const platformDataRaw = await db
-      .select({ name: petAdoptions.platform, value: count() })
-      .from(petAdoptions)
-      .where(whereClause)
-      .groupBy(petAdoptions.platform)
-      .orderBy(sql`count(*) DESC`);
-
-    const speciesDataRaw = await db
-      .select({ name: petAdoptions.species, value: count() })
-      .from(petAdoptions)
-      .where(whereClause)
-      .groupBy(petAdoptions.species)
-      .orderBy(sql`count(*) DESC`);
-
-    const shelterDataRaw = await db
-      .select({ name: petAdoptions.organizationName, value: count() })
-      .from(petAdoptions)
-      .where(and(whereClause, isNotNull(petAdoptions.organizationName)))
-      .groupBy(petAdoptions.organizationName)
-      .orderBy(sql`count(*) DESC`)
-      .limit(5);
-
-    const cityDataRaw = await db
-      .select({ name: petAdoptions.city, value: count() })
-      .from(petAdoptions)
-      .where(whereClause)
-      .groupBy(petAdoptions.city)
-      .orderBy(sql`count(*) DESC`)
-      .limit(5);
-
-    const availableSpeciesRaw = await db
-      .select({ name: petAdoptions.species })
-      .from(petAdoptions)
-      .where(eq(petAdoptions.countryCode, countryCode.toUpperCase()))
-      .groupBy(petAdoptions.species);
-      
-    const availableYearsRaw = await db
-      .select({ year: sql<number>`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp})::int` })
-      .from(petAdoptions)
-      .where(eq(petAdoptions.countryCode, countryCode.toUpperCase()))
-      .groupBy(sql`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp})`)
-      .orderBy(desc(sql`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp})`));
-
-    const availablePlatformsRaw = await db
-      .select({ name: petAdoptions.platform })
-      .from(petAdoptions)
-      .where(eq(petAdoptions.countryCode, countryCode.toUpperCase()))
-      .groupBy(petAdoptions.platform);
+    const totalAdoptions = totalAdoptionsResult[0].count;
 
     return {
       totalAdoptions,
@@ -316,9 +211,9 @@ export async function getCountryDashboardData(
       availablePlatforms: [],
     };
   }
-}
+}, ['dashboard-data-country'], { revalidate: 3600 });
 
-export async function getCityDirectoryData() {
+export const getCityDirectoryData = unstable_cache(async () => {
   try {
     const data = await db
       .select({
@@ -337,14 +232,14 @@ export async function getCityDirectoryData() {
     console.error("Database query failed for city directory", error);
     return [];
   }
-}
+}, ['dashboard-data-city-directory'], { revalidate: 3600 });
 
-export async function getCityDashboardData(
+export const getCityDashboardData = unstable_cache(async (
   countryCode: string,
   stateCode: string,
   city: string,
   filters: { interval?: string; species?: string; year?: string; platform?: string } = {}
-) {
+) => {
   try {
     const baseConditions = [
       eq(petAdoptions.countryCode, countryCode.toUpperCase()),
@@ -366,12 +261,6 @@ export async function getCityDashboardData(
 
     const whereClause = and(...baseConditions);
 
-    const totalAdoptionsResult = await db
-      .select({ count: count() })
-      .from(petAdoptions)
-      .where(whereClause);
-    const totalAdoptions = totalAdoptionsResult[0].count;
-
     let dateSql = sql<string>`DATE(${petAdoptions.adoptionTimestamp})::text`;
     if (filters.interval === 'weekly') {
       dateSql = sql<string>`DATE_TRUNC('week', ${petAdoptions.adoptionTimestamp})::date::text`;
@@ -379,63 +268,29 @@ export async function getCityDashboardData(
       dateSql = sql<string>`DATE_TRUNC('month', ${petAdoptions.adoptionTimestamp})::date::text`;
     }
 
-    const timeSeriesDataResult = await db
-      .select({
-        date: dateSql,
-        adoptions: count(),
-      })
-      .from(petAdoptions)
-      .where(whereClause)
-      .groupBy(dateSql)
-      .orderBy(sql`${dateSql} ASC`);
+    const [
+      totalAdoptionsResult,
+      timeSeriesDataResult,
+      recentAdoptions,
+      platformDataRaw,
+      speciesDataRaw,
+      shelterDataRaw,
+      availableSpeciesRaw,
+      availableYearsRaw,
+      availablePlatformsRaw
+    ] = await Promise.all([
+      db.select({ count: count() }).from(petAdoptions).where(whereClause),
+      db.select({ date: dateSql, adoptions: count() }).from(petAdoptions).where(whereClause).groupBy(dateSql).orderBy(sql`${dateSql} ASC`),
+      db.select().from(petAdoptions).where(whereClause).orderBy(desc(petAdoptions.adoptionTimestamp)).limit(500),
+      db.select({ name: petAdoptions.platform, value: count() }).from(petAdoptions).where(whereClause).groupBy(petAdoptions.platform).orderBy(sql`count(*) DESC`),
+      db.select({ name: petAdoptions.species, value: count() }).from(petAdoptions).where(whereClause).groupBy(petAdoptions.species).orderBy(sql`count(*) DESC`),
+      db.select({ name: petAdoptions.organizationName, value: count() }).from(petAdoptions).where(and(whereClause, isNotNull(petAdoptions.organizationName))).groupBy(petAdoptions.organizationName).orderBy(sql`count(*) DESC`).limit(5),
+      db.select({ name: petAdoptions.species }).from(petAdoptions).where(and(eq(petAdoptions.countryCode, countryCode.toUpperCase()), eq(petAdoptions.city, city))).groupBy(petAdoptions.species),
+      db.select({ year: sql<number>`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp})::int` }).from(petAdoptions).where(and(eq(petAdoptions.countryCode, countryCode.toUpperCase()), eq(petAdoptions.city, city))).groupBy(sql`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp})`).orderBy(desc(sql`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp})`)),
+      db.select({ name: petAdoptions.platform }).from(petAdoptions).where(and(eq(petAdoptions.countryCode, countryCode.toUpperCase()), eq(petAdoptions.city, city))).groupBy(petAdoptions.platform)
+    ]);
 
-    const recentAdoptions = await db
-      .select()
-      .from(petAdoptions)
-      .where(whereClause)
-      .orderBy(desc(petAdoptions.adoptionTimestamp))
-      .limit(500);
-
-    const platformDataRaw = await db
-      .select({ name: petAdoptions.platform, value: count() })
-      .from(petAdoptions)
-      .where(whereClause)
-      .groupBy(petAdoptions.platform)
-      .orderBy(sql`count(*) DESC`);
-
-    const speciesDataRaw = await db
-      .select({ name: petAdoptions.species, value: count() })
-      .from(petAdoptions)
-      .where(whereClause)
-      .groupBy(petAdoptions.species)
-      .orderBy(sql`count(*) DESC`);
-
-    const shelterDataRaw = await db
-      .select({ name: petAdoptions.organizationName, value: count() })
-      .from(petAdoptions)
-      .where(and(whereClause, isNotNull(petAdoptions.organizationName)))
-      .groupBy(petAdoptions.organizationName)
-      .orderBy(sql`count(*) DESC`)
-      .limit(5);
-
-    const availableSpeciesRaw = await db
-      .select({ name: petAdoptions.species })
-      .from(petAdoptions)
-      .where(and(eq(petAdoptions.countryCode, countryCode.toUpperCase()), eq(petAdoptions.city, city)))
-      .groupBy(petAdoptions.species);
-      
-    const availableYearsRaw = await db
-      .select({ year: sql<number>`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp})::int` })
-      .from(petAdoptions)
-      .where(and(eq(petAdoptions.countryCode, countryCode.toUpperCase()), eq(petAdoptions.city, city)))
-      .groupBy(sql`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp})`)
-      .orderBy(desc(sql`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp})`));
-
-    const availablePlatformsRaw = await db
-      .select({ name: petAdoptions.platform })
-      .from(petAdoptions)
-      .where(and(eq(petAdoptions.countryCode, countryCode.toUpperCase()), eq(petAdoptions.city, city)))
-      .groupBy(petAdoptions.platform);
+    const totalAdoptions = totalAdoptionsResult[0].count;
 
     return {
       totalAdoptions,
@@ -462,9 +317,9 @@ export async function getCityDashboardData(
       availablePlatforms: [],
     };
   }
-}
+}, ['dashboard-data-city'], { revalidate: 3600 });
 
-export async function getOrganizationDirectoryData() {
+export const getOrganizationDirectoryData = unstable_cache(async () => {
   try {
     const data = await db
       .select({
@@ -481,12 +336,12 @@ export async function getOrganizationDirectoryData() {
     console.error("Database query failed for org directory", error);
     return [];
   }
-}
+}, ['dashboard-data-org-directory'], { revalidate: 3600 });
 
-export async function getOrganizationDashboardData(
+export const getOrganizationDashboardData = unstable_cache(async (
   orgName: string,
   filters: { interval?: string; species?: string; year?: string; platform?: string } = {}
-) {
+) => {
   try {
     const baseConditions = [
       eq(petAdoptions.organizationName, orgName)
@@ -504,12 +359,6 @@ export async function getOrganizationDashboardData(
 
     const whereClause = and(...baseConditions);
 
-    const totalAdoptionsResult = await db
-      .select({ count: count() })
-      .from(petAdoptions)
-      .where(whereClause);
-    const totalAdoptions = totalAdoptionsResult[0].count;
-
     let dateSql = sql<string>`DATE(${petAdoptions.adoptionTimestamp})::text`;
     if (filters.interval === 'weekly') {
       dateSql = sql<string>`DATE_TRUNC('week', ${petAdoptions.adoptionTimestamp})::date::text`;
@@ -517,63 +366,29 @@ export async function getOrganizationDashboardData(
       dateSql = sql<string>`DATE_TRUNC('month', ${petAdoptions.adoptionTimestamp})::date::text`;
     }
 
-    const timeSeriesDataResult = await db
-      .select({
-        date: dateSql,
-        adoptions: count(),
-      })
-      .from(petAdoptions)
-      .where(whereClause)
-      .groupBy(dateSql)
-      .orderBy(sql`${dateSql} ASC`);
+    const [
+      totalAdoptionsResult,
+      timeSeriesDataResult,
+      recentAdoptions,
+      platformDataRaw,
+      speciesDataRaw,
+      cityDataRaw,
+      availableSpeciesRaw,
+      availableYearsRaw,
+      availablePlatformsRaw
+    ] = await Promise.all([
+      db.select({ count: count() }).from(petAdoptions).where(whereClause),
+      db.select({ date: dateSql, adoptions: count() }).from(petAdoptions).where(whereClause).groupBy(dateSql).orderBy(sql`${dateSql} ASC`),
+      db.select().from(petAdoptions).where(whereClause).orderBy(desc(petAdoptions.adoptionTimestamp)).limit(500),
+      db.select({ name: petAdoptions.platform, value: count() }).from(petAdoptions).where(whereClause).groupBy(petAdoptions.platform).orderBy(sql`count(*) DESC`),
+      db.select({ name: petAdoptions.species, value: count() }).from(petAdoptions).where(whereClause).groupBy(petAdoptions.species).orderBy(sql`count(*) DESC`),
+      db.select({ name: petAdoptions.city, value: count() }).from(petAdoptions).where(and(whereClause, isNotNull(petAdoptions.city))).groupBy(petAdoptions.city).orderBy(sql`count(*) DESC`).limit(5),
+      db.select({ name: petAdoptions.species }).from(petAdoptions).where(eq(petAdoptions.organizationName, orgName)).groupBy(petAdoptions.species),
+      db.select({ year: sql<number>`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp})::int` }).from(petAdoptions).where(eq(petAdoptions.organizationName, orgName)).groupBy(sql`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp})`).orderBy(desc(sql`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp})`)),
+      db.select({ name: petAdoptions.platform }).from(petAdoptions).where(eq(petAdoptions.organizationName, orgName)).groupBy(petAdoptions.platform)
+    ]);
 
-    const recentAdoptions = await db
-      .select()
-      .from(petAdoptions)
-      .where(whereClause)
-      .orderBy(desc(petAdoptions.adoptionTimestamp))
-      .limit(500);
-
-    const platformDataRaw = await db
-      .select({ name: petAdoptions.platform, value: count() })
-      .from(petAdoptions)
-      .where(whereClause)
-      .groupBy(petAdoptions.platform)
-      .orderBy(sql`count(*) DESC`);
-
-    const speciesDataRaw = await db
-      .select({ name: petAdoptions.species, value: count() })
-      .from(petAdoptions)
-      .where(whereClause)
-      .groupBy(petAdoptions.species)
-      .orderBy(sql`count(*) DESC`);
-
-    const cityDataRaw = await db
-      .select({ name: petAdoptions.city, value: count() })
-      .from(petAdoptions)
-      .where(and(whereClause, isNotNull(petAdoptions.city)))
-      .groupBy(petAdoptions.city)
-      .orderBy(sql`count(*) DESC`)
-      .limit(5);
-
-    const availableSpeciesRaw = await db
-      .select({ name: petAdoptions.species })
-      .from(petAdoptions)
-      .where(eq(petAdoptions.organizationName, orgName))
-      .groupBy(petAdoptions.species);
-      
-    const availableYearsRaw = await db
-      .select({ year: sql<number>`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp})::int` })
-      .from(petAdoptions)
-      .where(eq(petAdoptions.organizationName, orgName))
-      .groupBy(sql`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp})`)
-      .orderBy(desc(sql`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp})`));
-
-    const availablePlatformsRaw = await db
-      .select({ name: petAdoptions.platform })
-      .from(petAdoptions)
-      .where(eq(petAdoptions.organizationName, orgName))
-      .groupBy(petAdoptions.platform);
+    const totalAdoptions = totalAdoptionsResult[0].count;
 
     return {
       totalAdoptions,
@@ -600,4 +415,4 @@ export async function getOrganizationDashboardData(
       availablePlatforms: [],
     };
   }
-}
+}, ['dashboard-data-org'], { revalidate: 3600 });

@@ -1,11 +1,9 @@
 import { getCountryDashboardData } from "@/queries/dashboard";
-import { TimeSeriesAreaChart } from "@/components/charts/time-series-area-chart";
 import { CountryDataTable } from "@/components/country-data-table";
-import { CountryPieChart } from "@/components/charts/country-pie-chart";
-import { CountryLocationBarChart } from "@/components/charts/country-location-bar-chart";
 import { DashboardFilters } from "@/components/dashboard-filters";
 import Link from "next/link";
 import { ArrowLeft, MapPin } from "lucide-react";
+import { DynamicTimeSeriesAreaChart, DynamicCountryPieChart, DynamicCountryLocationBarChart } from "@/components/charts/dynamic-charts";
 
 export const revalidate = 60; // ISR cache
 
@@ -73,19 +71,19 @@ export default async function CountryDashboardPage({
           availableYears={data.availableYears} 
           availablePlatforms={data.availablePlatforms} 
         />
-        
-        <TimeSeriesAreaChart data={data.timeSeriesData} />
-        
-        {/* Breakdowns Row 1: Pie Charts */}
-        <div className="grid gap-8 md:grid-cols-2">
-          <CountryPieChart data={data.speciesData} title="Adoptions by Species" filterKey="species" />
-          <CountryPieChart data={data.platformData} title="Adoptions by Platform" filterKey="platform" />
+        <div className="col-span-full">
+          <DynamicTimeSeriesAreaChart data={data.timeSeriesData} />
         </div>
-
-        {/* Breakdowns Row 2: Location Bar Charts */}
-        <div className="grid gap-8 md:grid-cols-2">
-          <CountryLocationBarChart data={data.shelterData} title="Top 5 Shelters" />
-          <CountryLocationBarChart data={data.cityData} title="Top 5 Cities" />
+        
+        {/* Breakdown Charts */}
+        <div className="grid gap-6 md:grid-cols-2">
+          <DynamicCountryPieChart data={data.speciesData} title="Species Breakdown" />
+          <DynamicCountryPieChart data={data.platformData} title="Platform Distribution" />
+        </div>
+        
+        <div className="grid gap-6 md:grid-cols-2">
+          <DynamicCountryLocationBarChart data={data.cityData} title="Top Cities" />
+          <DynamicCountryLocationBarChart data={data.shelterData} title="Top Shelters" />
         </div>
 
         {/* Raw Data Table at the very bottom */}

@@ -1,10 +1,9 @@
 import { getOrganizationDashboardData } from "@/queries/dashboard";
-import { TimeSeriesAreaChart } from "@/components/charts/time-series-area-chart";
 import { CountryDataTable } from "@/components/country-data-table";
-import { CountryPieChart } from "@/components/charts/country-pie-chart";
 import { DashboardFilters } from "@/components/dashboard-filters";
 import { Link } from "@/i18n/routing";
 import { ArrowLeft, Building2 } from "lucide-react";
+import { DynamicTimeSeriesAreaChart, DynamicCountryPieChart } from "@/components/charts/dynamic-charts";
 
 export const revalidate = 60; // ISR cache
 
@@ -67,18 +66,19 @@ export default async function OrganizationDashboardPage({
           availablePlatforms={data.availablePlatforms} 
         />
         
-        <TimeSeriesAreaChart data={data.timeSeriesData} />
+        {/* Time Series Area Chart */}
+        <DynamicTimeSeriesAreaChart data={data.timeSeriesData} />
         
         {/* Breakdowns Row 1: Pie Charts */}
         <div className="grid gap-8 md:grid-cols-2">
-          <CountryPieChart data={data.speciesData} title="Adoptions by Species" filterKey="species" />
-          <CountryPieChart data={data.platformData} title="Adoptions by Platform" filterKey="platform" />
+          <DynamicCountryPieChart data={data.speciesData} title="Adoptions by Species" filterKey="species" />
+          <DynamicCountryPieChart data={data.platformData} title="Adoptions by Platform" filterKey="platform" />
         </div>
         
         {/* Top Cities */}
         {data.cityData && data.cityData.length > 0 && (
           <div className="grid gap-8 md:grid-cols-1">
-            <CountryPieChart data={data.cityData} title="Adoptions by City" />
+            <DynamicCountryPieChart data={data.cityData} title="Adoptions by City" />
           </div>
         )}
 

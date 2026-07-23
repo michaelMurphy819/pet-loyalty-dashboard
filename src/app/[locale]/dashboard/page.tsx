@@ -1,10 +1,8 @@
 import { getDashboardData } from "@/queries/dashboard";
 import { KPICards } from "@/components/kpi-cards";
-import { PlatformPieChart } from "@/components/charts/platform-pie-chart";
-import { SpeciesBarChart } from "@/components/charts/species-bar-chart";
 import { DashboardFilters } from "@/components/dashboard-filters";
-import { TimeSeriesAreaChart } from "@/components/charts/time-series-area-chart";
 import { getTranslations } from "next-intl/server";
+import { DynamicPlatformPieChart, DynamicSpeciesBarChart, DynamicTimeSeriesAreaChart } from "@/components/charts/dynamic-charts";
 
 export const revalidate = 60; // ISR cache revalidation every 60 seconds
 
@@ -50,13 +48,16 @@ export default async function DashboardPage({
           availablePlatforms={data.availablePlatforms} 
         />
 
-        {/* Time Series Area Chart */}
-        <TimeSeriesAreaChart data={data.timeSeriesData} />
-
-        {/* Bottom Row: Breakdown Charts */}
-        <div className="grid gap-6 md:grid-cols-2">
-          <PlatformPieChart data={data.platformData} />
-          <SpeciesBarChart data={data.speciesData} />
+        <div className="col-span-full">
+          <DynamicTimeSeriesAreaChart data={data.timeSeriesData} />
+        </div>
+        
+        <div className="col-span-full lg:col-span-1">
+          <DynamicPlatformPieChart data={data.platformData} />
+        </div>
+        
+        <div className="col-span-full lg:col-span-1">
+          <DynamicSpeciesBarChart data={data.speciesData} />
         </div>
       </div>
     </div>
