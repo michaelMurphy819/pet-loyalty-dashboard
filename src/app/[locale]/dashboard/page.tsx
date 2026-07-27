@@ -32,18 +32,18 @@ export default async function DashboardPage({
   const t = await getTranslations("Dashboard");
 
   return (
-    <div className="flex flex-col gap-8 p-5 md:p-8 max-w-[1600px] mx-auto min-w-0 w-full overflow-x-hidden bg-slate-50/70">
+    <div className="flex flex-col gap-6 sm:gap-8 p-3 sm:p-5 md:p-8 max-w-[1600px] mx-auto min-w-0 w-full overflow-x-hidden bg-slate-50/70">
       {/* Page Header */}
-      <div className="flex flex-col space-y-1 border-b border-slate-200/80 pb-4">
-        <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-slate-900 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+      <div className="flex flex-col space-y-1 border-b border-slate-200/80 pb-3 sm:pb-4">
+        <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight text-slate-900 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
           {t('title')}
         </h1>
-        <p className="text-sm text-slate-600 font-medium">
+        <p className="text-xs sm:text-sm text-slate-600 font-medium">
           {t('subtitle')} &mdash; Click any slice, chart column, or tag to dynamically cross-filter all analytics.
         </p>
       </div>
 
-      <div className="flex flex-col space-y-7 w-full min-w-0">
+      <div className="flex flex-col space-y-5 sm:space-y-7 w-full min-w-0">
         {/* Top Row: Executive KPIs & Interactive Filters */}
         <div className="flex flex-col gap-4">
           <KPICards 
@@ -69,32 +69,32 @@ export default async function DashboardPage({
           <DynamicDayOfWeekHeatmap />
         </div>
 
-        {/* Row 3: Channel Market Share & Regional Dominance (Strict 2 Graphs Side-by-Side) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 min-w-0 w-full items-stretch">
-          <div className="min-w-0 w-full flex">
+        {/* Row 3: Channel Market Share & Regional Dominance (1 Col on Mobile <640px, Strict 2 Cols on Tablet & Desktop >=640px) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 min-w-0 w-full items-stretch">
+          <div className="min-w-0 w-full overflow-hidden">
             <DynamicPlatformPieChart data={data.platformData} />
           </div>
-          <div className="min-w-0 w-full flex">
+          <div className="min-w-0 w-full overflow-hidden">
             <DynamicPlatformDominanceChart />
           </div>
         </div>
 
-        {/* Row 4: Species Distribution & Primary Breed Analytics (Strict 2 Graphs Side-by-Side) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 min-w-0 w-full items-stretch">
-          <div className="min-w-0 w-full flex">
+        {/* Row 4: Species Distribution & Primary Breed Analytics (1 Col on Mobile <640px, Strict 2 Cols on Tablet & Desktop >=640px) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 min-w-0 w-full items-stretch">
+          <div className="min-w-0 w-full overflow-hidden">
             <DynamicSpeciesBarChart data={data.speciesData} />
           </div>
-          <div className="min-w-0 w-full flex">
+          <div className="min-w-0 w-full overflow-hidden">
             <DynamicBreedsLeaderboardChart selectedSpecies={filters.species} />
           </div>
         </div>
 
-        {/* Row 5: Geographic Municipalities & Rescue Partner Directory (Strict 2 Graphs Side-by-Side) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 min-w-0 w-full items-stretch">
-          <div className="min-w-0 w-full flex">
+        {/* Row 5: Geographic Municipalities & Rescue Partner Directory (1 Col on Mobile <640px, Strict 2 Cols on Tablet & Desktop >=640px) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 min-w-0 w-full items-stretch">
+          <div className="min-w-0 w-full overflow-hidden">
             <DynamicLocationLeaderboardChart />
           </div>
-          <div className="min-w-0 w-full flex">
+          <div className="min-w-0 w-full overflow-hidden">
             <DynamicOrganizationsDataTable />
           </div>
         </div>

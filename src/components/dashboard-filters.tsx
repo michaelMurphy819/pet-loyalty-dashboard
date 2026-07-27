@@ -60,35 +60,36 @@ export function DashboardFilters({ availableSpecies, availableYears, availablePl
   const hasFilters = currentInterval !== "daily" || currentSpecies !== "all" || currentYear !== "all" || currentPlatform !== "all";
 
   return (
-    <Card className="flex flex-col shadow-sm border border-slate-200/80 bg-white rounded-2xl overflow-hidden transition-all hover:shadow-md">
-      <div className="px-5 py-3 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5">
+    <Card className="flex flex-col shadow-sm border border-slate-200/80 bg-white rounded-2xl overflow-hidden transition-all hover:shadow-md w-full">
+      <div className="px-4 sm:px-5 py-3 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
           <div className="p-1.5 rounded-lg bg-indigo-100 text-indigo-700 font-bold shadow-2xs shrink-0">
             <Filter className="w-4 h-4" />
           </div>
           <p className="text-xs font-semibold text-slate-700 truncate">
-            <span className="text-slate-400 font-normal mr-1">Active View:</span>
+            <span className="text-slate-400 font-normal mr-1 hidden sm:inline">Active View:</span>
             {plainEnglishSummary}
           </p>
         </div>
         {hasFilters && (
           <button 
             onClick={handleClearAll}
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 px-3 py-1 rounded-lg transition-colors border border-rose-200/80 shadow-2xs shrink-0"
+            className="inline-flex items-center gap-1 text-xs font-bold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 px-2.5 sm:px-3 py-1 rounded-lg transition-colors border border-rose-200/80 shadow-2xs shrink-0"
           >
-            <XCircle className="w-3.5 h-3.5" />
-            {tReporting("clearAll")}
+            <XCircle className="w-3.5 h-3.5 shrink-0" />
+            <span className="hidden sm:inline">{tReporting("clearAll")}</span>
+            <span className="sm:hidden">Reset</span>
           </button>
         )}
       </div>
 
-      <div className="p-4 px-5 flex flex-wrap gap-4 items-center bg-white">
+      <div className="p-3.5 sm:p-4 sm:px-5 grid grid-cols-2 sm:flex sm:flex-wrap gap-3 sm:gap-4 items-center bg-white w-full">
         <div className="flex flex-col gap-1 w-full sm:w-auto">
-          <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{t("filters.interval")}</label>
+          <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">{t("filters.interval")}</label>
           <select 
             value={currentInterval}
             onChange={(e) => handleFilterChange("interval", e.target.value)}
-            className="h-9.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50/80 text-xs font-bold text-slate-800 shadow-2xs hover:bg-slate-100 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors w-full sm:w-[150px] cursor-pointer"
+            className="h-10 sm:h-9.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50/80 text-xs font-bold text-slate-800 shadow-2xs hover:bg-slate-100 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors w-full sm:w-[150px] cursor-pointer"
           >
             <option value="daily">{t("filters.daily")}</option>
             <option value="weekly">{t("filters.weekly")}</option>
@@ -97,11 +98,11 @@ export function DashboardFilters({ availableSpecies, availableYears, availablePl
         </div>
 
         <div className="flex flex-col gap-1 w-full sm:w-auto">
-          <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{t("filters.species")}</label>
+          <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">{t("filters.species")}</label>
           <select 
             value={currentSpecies}
             onChange={(e) => handleFilterChange("species", e.target.value)}
-            className="h-9.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50/80 text-xs font-bold text-slate-800 shadow-2xs hover:bg-slate-100 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors w-full sm:w-[170px] capitalize cursor-pointer"
+            className="h-10 sm:h-9.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50/80 text-xs font-bold text-slate-800 shadow-2xs hover:bg-slate-100 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors w-full sm:w-[170px] capitalize cursor-pointer"
           >
             <option value="all">{t("filters.allSpecies")}</option>
             {availableSpecies.map(s => (
@@ -111,11 +112,11 @@ export function DashboardFilters({ availableSpecies, availableYears, availablePl
         </div>
 
         <div className="flex flex-col gap-1 w-full sm:w-auto">
-          <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{t("filters.year")}</label>
+          <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">{t("filters.year")}</label>
           <select 
             value={currentYear}
             onChange={(e) => handleFilterChange("year", e.target.value)}
-            className="h-9.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50/80 text-xs font-bold text-slate-800 shadow-2xs hover:bg-slate-100 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors w-full sm:w-[140px] cursor-pointer"
+            className="h-10 sm:h-9.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50/80 text-xs font-bold text-slate-800 shadow-2xs hover:bg-slate-100 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors w-full sm:w-[140px] cursor-pointer"
           >
             <option value="all">{t("filters.allTime")}</option>
             {availableYears.map(y => (
@@ -126,11 +127,11 @@ export function DashboardFilters({ availableSpecies, availableYears, availablePl
 
         {availablePlatforms.length > 0 && (
           <div className="flex flex-col gap-1 w-full sm:w-auto">
-            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Platform</label>
+            <label className="text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider">Platform</label>
             <select 
               value={currentPlatform}
               onChange={(e) => handleFilterChange("platform", e.target.value)}
-              className="h-9.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50/80 text-xs font-bold text-slate-800 shadow-2xs hover:bg-slate-100 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors w-full sm:w-[160px] capitalize cursor-pointer"
+              className="h-10 sm:h-9.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50/80 text-xs font-bold text-slate-800 shadow-2xs hover:bg-slate-100 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors w-full sm:w-[160px] capitalize cursor-pointer"
             >
               <option value="all">All Platforms</option>
               {availablePlatforms.map(p => (

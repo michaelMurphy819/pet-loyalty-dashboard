@@ -42,9 +42,9 @@ export function KPICards({ totalAdoptions, adoptionsThisWeek, adoptionsThisWeekD
   const t = useTranslations("Dashboard.kpi");
 
   return (
-    <div className="grid gap-5 sm:grid-cols-2 md:grid-cols-2 w-full">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5 w-full">
       {/* Card 1: Total Adoptions */}
-      <Card className="border border-slate-200/80 bg-white shadow-sm hover:shadow-md transition-all rounded-2xl p-5 overflow-hidden relative group w-full">
+      <Card className="border border-slate-200/80 bg-white shadow-sm hover:shadow-md transition-all rounded-2xl p-4 sm:p-5 overflow-hidden relative group w-full">
         <div className="flex items-start justify-between">
           <div className="flex flex-col">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
@@ -55,14 +55,14 @@ export function KPICards({ totalAdoptions, adoptionsThisWeek, adoptionsThisWeekD
             </div>
             <p className="text-xs text-slate-400 mt-1 font-medium">Recorded across all verified partner organizations</p>
           </div>
-          <div className="p-3 rounded-2xl bg-indigo-50 border border-indigo-100 text-indigo-600 shadow-2xs group-hover:scale-105 transition-transform">
+          <div className="p-2.5 sm:p-3 rounded-2xl bg-indigo-50 border border-indigo-100 text-indigo-600 shadow-2xs group-hover:scale-105 transition-transform shrink-0">
             <Users className="w-6 h-6" />
           </div>
         </div>
       </Card>
       
       {/* Card 2: Adoptions This Week */}
-      <Card className="border border-slate-200/80 bg-white shadow-sm hover:shadow-md transition-all rounded-2xl p-5 overflow-hidden relative group w-full">
+      <Card className="border border-slate-200/80 bg-white shadow-sm hover:shadow-md transition-all rounded-2xl p-4 sm:p-5 overflow-hidden relative group w-full">
         <div className="flex items-start justify-between">
           <div className="flex flex-col">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
@@ -75,7 +75,7 @@ export function KPICards({ totalAdoptions, adoptionsThisWeek, adoptionsThisWeekD
               <BenchmarkIndicator delta={adoptionsThisWeekDelta} />
             </div>
           </div>
-          <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-100 text-emerald-600 shadow-2xs group-hover:scale-105 transition-transform">
+          <div className="p-2.5 sm:p-3 rounded-2xl bg-emerald-50 border border-emerald-100 text-emerald-600 shadow-2xs group-hover:scale-105 transition-transform shrink-0">
             <Calendar className="w-6 h-6" />
           </div>
         </div>

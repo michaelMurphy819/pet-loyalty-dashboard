@@ -93,13 +93,13 @@ export default async function CountryDashboardPage({
         </div>
         
         {/* 2-Column Pie Breakdowns */}
-        <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
+        <div className="grid gap-6 grid-cols-1 sm:grid-cols-2">
           <DynamicCountryPieChart data={data.speciesData} title="Species Breakdown" filterKey="species" />
           <DynamicCountryPieChart data={data.platformData} title="Channel & Platform Distribution" filterKey="platform" />
         </div>
         
         {/* 2-Column Rankings Breakdowns */}
-        <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
+        <div className="grid gap-6 grid-cols-1 sm:grid-cols-2">
           <DynamicCountryLocationBarChart data={data.cityData} title="Top Municipal Areas" filterKey="city" />
           <DynamicCountryLocationBarChart data={data.shelterData} title="Top Partner Shelters" filterKey="shelter" />
         </div>

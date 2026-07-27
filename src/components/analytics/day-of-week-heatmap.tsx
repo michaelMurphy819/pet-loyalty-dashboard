@@ -34,7 +34,6 @@ export function DayOfWeekHeatmap() {
     return () => { isMounted = false; };
   }, [queryString]);
 
-  // Clean, vibrant solid color tones (no gradient / ombre blends)
   const getSolidHeatmapStyling = (ratio: number) => {
     if (ratio >= 0.88) {
       return {
@@ -70,31 +69,32 @@ export function DayOfWeekHeatmap() {
 
   if (loading) {
     return (
-      <div className="h-[190px] min-h-[190px] max-h-[190px] w-full animate-pulse bg-white rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between p-4">
+      <div className="h-[190px] w-full animate-pulse bg-white rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between p-4">
         <div className="h-5 w-48 bg-slate-100 rounded-md" />
-        <div className="flex-1 bg-slate-50/80 rounded-xl my-2" />
+        <div className="h-[125px] bg-slate-50/80 rounded-xl my-2" />
       </div>
     );
   }
 
   return (
-    <Card className="border border-slate-200/80 bg-white shadow-sm hover:shadow-md transition-all rounded-2xl overflow-hidden min-w-0 w-full h-[190px] min-h-[190px] max-h-[190px] flex flex-col justify-between">
-      <div className="py-2.5 px-5 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between shrink-0">
+    <Card className="border border-slate-200/80 bg-white shadow-sm hover:shadow-md transition-all rounded-2xl overflow-hidden min-w-0 w-full h-[190px] flex flex-col justify-between">
+      <div className="py-2.5 px-4 sm:px-5 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between shrink-0 gap-2">
         <div className="flex items-center gap-2 truncate">
           <div className="p-1.5 rounded-lg bg-indigo-100 text-indigo-700 font-bold shadow-2xs shrink-0">
             <CalendarDays className="w-4 h-4" />
           </div>
-          <h3 className="text-sm font-bold text-slate-900 leading-none truncate">Day-of-Week Volume Distribution</h3>
+          <h3 className="text-xs sm:text-sm font-bold text-slate-900 leading-none truncate">Day-of-Week Volume Distribution</h3>
         </div>
-        <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-600 bg-white px-2.5 py-0.5 rounded-full border border-slate-200 shadow-2xs shrink-0">
-          <BarChart2 className="w-3.5 h-3.5 text-indigo-600" />
-          7-Day Adoption Velocity
+        <span className="inline-flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-[11px] font-semibold text-slate-600 bg-white px-2 sm:px-2.5 py-0.5 rounded-full border border-slate-200 shadow-2xs shrink-0">
+          <BarChart2 className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+          <span className="hidden sm:inline">7-Day Adoption Velocity</span>
+          <span className="sm:hidden">7-Day Velocity</span>
         </span>
       </div>
 
-      <CardContent className="p-3 px-5 flex-1 min-h-0 flex flex-col justify-center overflow-hidden min-w-0 w-full">
-        {/* Strictly 7 items in a single horizontal row with short, clean solid-color tiles */}
-        <div className="grid grid-cols-7 gap-1.5 sm:gap-2.5 md:gap-3 w-full flex-1 min-h-0">
+      <CardContent className="p-2.5 sm:p-3.5 sm:px-5 overflow-hidden min-w-0 w-full flex flex-col justify-center">
+        {/* Strictly enforce grid-cols-7 across ALL viewports with compact mobile spacing so every single day is visible without overflow! */}
+        <div className="grid grid-cols-7 gap-1.5 sm:gap-2.5 md:gap-3 w-full h-[120px] max-h-[120px]">
           {days.map((item) => {
             const style = getSolidHeatmapStyling(item.intensity_ratio);
             const isPeak = item.intensity_ratio >= 0.88;
@@ -103,23 +103,20 @@ export function DayOfWeekHeatmap() {
             return (
               <div 
                 key={item.day_name}
-                className={`py-1.5 px-1 sm:px-2 rounded-xl border transition-all flex flex-col items-center justify-between text-center select-none h-full w-full min-w-0 overflow-hidden ${style.card}`}
+                className={`p-1.5 sm:p-2 rounded-xl border transition-all flex flex-col items-center justify-between text-center select-none h-full w-full overflow-hidden ${style.card}`}
               >
-                <span className={`text-[10px] sm:text-xs tracking-wider uppercase truncate w-full ${style.label}`}>
+                <span className={`text-[9px] sm:text-xs tracking-wider uppercase truncate w-full ${style.label}`}>
                   {shortName}
                 </span>
 
                 <div className="my-0.5 truncate w-full">
-                  <span className={`text-xs sm:text-sm md:text-lg tracking-tight block truncate ${style.num}`}>
+                  <span className={`text-[11px] sm:text-base lg:text-lg tracking-tight block truncate font-extrabold ${style.num}`}>
                     {Number(item.volume || 0).toLocaleString()}
-                  </span>
-                  <span className="text-[9px] sm:text-[10px] opacity-75 block leading-none mt-0.5 font-normal truncate">
-                    adoptions
                   </span>
                 </div>
 
-                <div className="w-full mt-0.5 px-0.5 truncate">
-                  <span className={`py-0.5 px-1 rounded-md text-[8px] sm:text-[10px] uppercase tracking-wider block w-full text-center truncate ${style.badge}`}>
+                <div className="w-full px-0 sm:px-0.5 truncate">
+                  <span className={`py-0.5 px-0.5 sm:px-1 rounded-md text-[8px] sm:text-[10px] uppercase tracking-wider block w-full text-center truncate ${style.badge}`}>
                     {isPeak ? "Peak" : `${Math.round(item.intensity_ratio * 100)}%`}
                   </span>
                 </div>

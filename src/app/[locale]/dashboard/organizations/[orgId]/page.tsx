@@ -86,7 +86,7 @@ export default async function OrganizationDashboardPage({
         </div>
         
         {/* 2-Column Analytics Row */}
-        <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
+        <div className="grid gap-6 grid-cols-1 sm:grid-cols-2">
           <DynamicCountryPieChart data={data.speciesData} title="Adoptions by Species" filterKey="species" />
           <DynamicCountryPieChart data={data.platformData} title="Origin Channel Distribution" filterKey="platform" />
         </div>

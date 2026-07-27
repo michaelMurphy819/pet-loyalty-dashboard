@@ -11,6 +11,14 @@ const StandardFallbackSkeleton = () => (
   </div>
 );
 
+const TallFallbackSkeleton = () => (
+  <div className="h-[570px] w-full animate-pulse bg-white rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between p-6">
+    <div className="h-7 w-64 bg-slate-100 rounded-md mb-4" />
+    <div className="flex-1 bg-slate-50/80 rounded-xl my-3" />
+    <div className="h-4 w-36 bg-slate-100 rounded-md mx-auto" />
+  </div>
+);
+
 const ShortFallbackSkeleton = () => (
   <div className="h-[190px] w-full animate-pulse bg-white rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between p-4">
     <div className="h-5 w-48 bg-slate-100 rounded-md" />
@@ -45,5 +53,5 @@ export const DynamicDayOfWeekHeatmap = dynamic(
 
 export const DynamicAdoptionsOverTimeWithMovingAvg = dynamic(
   () => import("@/components/analytics/moving-average-time-series").then((mod) => mod.AdoptionsOverTimeWithMovingAvg),
-  { ssr: false, loading: StandardFallbackSkeleton }
+  { ssr: false, loading: TallFallbackSkeleton }
 );
