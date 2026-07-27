@@ -24,6 +24,7 @@ export default async function OrganizationDashboardPage({
     species: typeof resolvedSearchParams.species === 'string' ? resolvedSearchParams.species : undefined,
     year: typeof resolvedSearchParams.year === 'string' ? resolvedSearchParams.year : undefined,
     platform: typeof resolvedSearchParams.platform === 'string' ? resolvedSearchParams.platform : undefined,
+    city: typeof resolvedSearchParams.city === 'string' ? resolvedSearchParams.city : undefined,
   };
 
   const data = await getOrganizationDashboardData(orgName, filters);
@@ -78,7 +79,7 @@ export default async function OrganizationDashboardPage({
         {/* Top Cities */}
         {data.cityData && data.cityData.length > 0 && (
           <div className="grid gap-8 md:grid-cols-1">
-            <DynamicCountryPieChart data={data.cityData} title="Adoptions by City" />
+            <DynamicCountryPieChart data={data.cityData} title="Adoptions by City" filterKey="city" />
           </div>
         )}
 

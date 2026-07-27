@@ -1,4 +1,4 @@
-import { pgSchema, serial, varchar, timestamp, jsonb, index } from "drizzle-orm/pg-core";
+import { pgSchema, serial, varchar, timestamp, jsonb, index, date, integer } from "drizzle-orm/pg-core";
 
 export const analyticsSchema = pgSchema("analytics");
 
@@ -24,3 +24,18 @@ export const petAdoptions = analyticsSchema.table("pet_adoptions", {
   cityIdx: index("idx_city").on(table.city),
   orgIdx: index("idx_organization_name").on(table.organizationName),
 }));
+
+export const mvDashboardSummary = analyticsSchema.table("mv_dashboard_summary", {
+  adoptionDate: date("adoption_date").notNull(),
+  adoptionYear: integer("adoption_year").notNull(),
+  adoptionWeek: date("adoption_week").notNull(),
+  adoptionMonth: date("adoption_month").notNull(),
+  platform: varchar("platform", { length: 255 }),
+  species: varchar("species", { length: 100 }),
+  countryCode: varchar("country_code", { length: 2 }),
+  stateCode: varchar("state_code", { length: 50 }),
+  city: varchar("city", { length: 255 }),
+  organizationName: varchar("organization_name", { length: 255 }),
+  adoptionCount: integer("adoption_count").notNull(),
+  latestAdoption: timestamp("latest_adoption"),
+});

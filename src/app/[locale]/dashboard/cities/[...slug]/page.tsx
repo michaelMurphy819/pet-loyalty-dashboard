@@ -3,7 +3,7 @@ import { CountryDataTable } from "@/components/country-data-table";
 import { DashboardFilters } from "@/components/dashboard-filters";
 import { Link } from "@/i18n/routing";
 import { ArrowLeft, MapPin } from "lucide-react";
-import { DynamicTimeSeriesAreaChart, DynamicCountryPieChart } from "@/components/charts/dynamic-charts";
+import { DynamicTimeSeriesAreaChart, DynamicCountryPieChart, DynamicCountryLocationBarChart } from "@/components/charts/dynamic-charts";
 
 export const revalidate = 60; // ISR cache
 
@@ -27,6 +27,7 @@ export default async function CityDashboardPage({
     species: typeof resolvedSearchParams.species === 'string' ? resolvedSearchParams.species : undefined,
     year: typeof resolvedSearchParams.year === 'string' ? resolvedSearchParams.year : undefined,
     platform: typeof resolvedSearchParams.platform === 'string' ? resolvedSearchParams.platform : undefined,
+    shelter: typeof resolvedSearchParams.shelter === 'string' ? resolvedSearchParams.shelter : undefined,
   };
 
   const data = await getCityDashboardData(countryCode, stateCode, city, filters);
@@ -85,6 +86,13 @@ export default async function CityDashboardPage({
           <DynamicCountryPieChart data={data.speciesData} title="Adoptions by Species" filterKey="species" />
           <DynamicCountryPieChart data={data.platformData} title="Adoptions by Platform" filterKey="platform" />
         </div>
+
+        {/* Top Shelters in City */}
+        {data.shelterData && data.shelterData.length > 0 && (
+          <div className="grid gap-8 md:grid-cols-1">
+            <DynamicCountryLocationBarChart data={data.shelterData} title="Top Shelters in City" filterKey="shelter" />
+          </div>
+        )}
 
         {/* Raw Data Table at the very bottom */}
         <div className="mt-8">

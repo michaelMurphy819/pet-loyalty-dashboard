@@ -19,38 +19,45 @@ export function SpeciesBarChart({ data }: { data: DataItem[] }) {
 
   if (!data || data.length === 0) return null;
 
-  const handleBarClick = (data: any) => {
-    if (data && data.name) {
+  const processedData = [...data]
+    .filter(d => d.name !== "Other" && d.name !== "other")
+    .sort((a, b) => b.value - a.value);
+
+  if (processedData.length === 0) return null;
+
+  const handleBarClick = (item: any) => {
+    if (item && item.name) {
       const currentParams = new URLSearchParams(searchParams?.toString() || "");
-      if (currentParams.get("species") === data.name) {
+      if (currentParams.get("species") === item.name) {
         currentParams.delete("species");
       } else {
-        currentParams.set("species", data.name);
+        currentParams.set("species", item.name);
       }
       router.push(`?${currentParams.toString()}`, { scroll: false });
     }
   };
 
   return (
-    <Card className="shadow-sm border-slate-200">
+    <Card className="shadow-sm border-slate-200 flex flex-col justify-between overflow-hidden min-w-0 w-full h-full">
       <CardHeader>
-        <div className="flex items-center gap-2">
-          <CardTitle className="text-lg font-bold">{t("charts.adoptionsBySpecies")}</CardTitle>
-          <div title={tReporting("tooltips.species")} className="cursor-help">
+        <div className="flex items-center gap-2 truncate">
+          <CardTitle className="text-lg font-bold truncate">{t("charts.adoptionsBySpecies")}</CardTitle>
+          <div title={tReporting("tooltips.species")} className="cursor-help shrink-0">
             <Info className="w-4 h-4 text-slate-400 hover:text-indigo-500 transition-colors" />
           </div>
         </div>
       </CardHeader>
-      <CardContent className="pt-4">
-        <div className="h-[300px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data} margin={{ top: 10, right: 20, left: 10, bottom: 0 }}>
+      <CardContent className="pt-4 flex flex-col gap-4 overflow-hidden min-w-0 w-full">
+        <div className="w-full relative shrink-0" style={{ height: "280px", minHeight: "280px", width: "100%" }}>
+          <ResponsiveContainer width="100%" height={280}>
+            <BarChart data={processedData} margin={{ top: 10, right: 20, left: 10, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
-              <YAxis scale="sqrt" domain={[0, 'auto']} axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
+              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 12 }} />
+              <YAxis scale="sqrt" domain={[0, "auto"]} axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 12 }} />
               <Tooltip
-                cursor={{ fill: '#f1f5f9' }}
-                contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                cursor={{ fill: "#f1f5f9" }}
+                formatter={(value: any, name: any) => [Number(value).toLocaleString(), name]}
+                contentStyle={{ borderRadius: "8px", border: "none", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)" }}
               />
               <Bar 
                 dataKey="value" 
@@ -62,7 +69,7 @@ export function SpeciesBarChart({ data }: { data: DataItem[] }) {
             </BarChart>
           </ResponsiveContainer>
         </div>
-        <p className="text-xs text-slate-400 text-center mt-6">
+        <p className="text-xs text-slate-400 text-center mt-2 truncate">
           Click on a bar to filter the dashboard by species. Click again to clear.
         </p>
       </CardContent>

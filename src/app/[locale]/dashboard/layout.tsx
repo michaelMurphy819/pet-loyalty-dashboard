@@ -9,6 +9,7 @@ import { useTranslations } from "next-intl";
 import { UserMenu } from "@/components/user-menu";
 import { GlobalSearch } from "@/components/global-search";
 import { useEffect, useState } from "react";
+import { ActiveFiltersPopup } from "@/components/dashboard/active-filters-popup";
 
 export default function DashboardLayout({
   children,
@@ -120,6 +121,7 @@ export default function DashboardLayout({
       <main id="dashboard-export-area" className="flex-1 pb-10">
         {children}
       </main>
+      <ActiveFiltersPopup />
     </div>
   );
 }

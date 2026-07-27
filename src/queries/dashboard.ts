@@ -1,31 +1,37 @@
 import { db } from "@/lib/db";
-import { petAdoptions } from "@/lib/db/schema";
+import { petAdoptions, mvDashboardSummary } from "@/lib/db/schema";
 import { count, sql, gte, eq, desc, and, isNotNull } from "drizzle-orm";
 import { unstable_cache } from "next/cache";
 
 export const getDashboardData = unstable_cache(async (
-  filters: { interval?: string; species?: string; year?: string; platform?: string } = {}
+  filters: { interval?: string; species?: string; year?: string; platform?: string; city?: string; shelter?: string } = {}
 ) => {
   try {
     const baseConditions = [];
     
     if (filters.species && filters.species !== 'all') {
-      baseConditions.push(eq(petAdoptions.species, filters.species));
+      baseConditions.push(eq(mvDashboardSummary.species, filters.species));
     }
     if (filters.year && filters.year !== 'all') {
-      baseConditions.push(sql`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp}) = ${Number(filters.year)}`);
+      baseConditions.push(eq(mvDashboardSummary.adoptionYear, Number(filters.year)));
     }
     if (filters.platform && filters.platform !== 'all') {
-      baseConditions.push(eq(petAdoptions.platform, filters.platform));
+      baseConditions.push(eq(mvDashboardSummary.platform, filters.platform));
+    }
+    if (filters.city && filters.city !== 'all') {
+      baseConditions.push(eq(mvDashboardSummary.city, filters.city));
+    }
+    if (filters.shelter && filters.shelter !== 'all') {
+      baseConditions.push(eq(mvDashboardSummary.organizationName, filters.shelter));
     }
 
     const whereClause = baseConditions.length > 0 ? and(...baseConditions) : undefined;
 
-    let dateSql = sql<string>`DATE(${petAdoptions.adoptionTimestamp})::text`;
+    let dateCol: any = mvDashboardSummary.adoptionDate;
     if (filters.interval === 'weekly') {
-      dateSql = sql<string>`DATE_TRUNC('week', ${petAdoptions.adoptionTimestamp})::date::text`;
+      dateCol = mvDashboardSummary.adoptionWeek;
     } else if (filters.interval === 'monthly') {
-      dateSql = sql<string>`DATE_TRUNC('month', ${petAdoptions.adoptionTimestamp})::date::text`;
+      dateCol = mvDashboardSummary.adoptionMonth;
     }
 
     const [
@@ -40,21 +46,21 @@ export const getDashboardData = unstable_cache(async (
       availableYearsRaw,
       availablePlatformsRaw
     ] = await Promise.all([
-      db.select({ count: count() }).from(petAdoptions).where(whereClause),
-      db.select({ count: count() }).from(petAdoptions).where(whereClause ? and(whereClause, gte(petAdoptions.adoptionTimestamp, sql`NOW() - INTERVAL '7 days'`)) : gte(petAdoptions.adoptionTimestamp, sql`NOW() - INTERVAL '7 days'`)),
-      db.select({ count: count() }).from(petAdoptions).where(whereClause ? and(whereClause, gte(petAdoptions.adoptionTimestamp, sql`NOW() - INTERVAL '14 days'`), sql`${petAdoptions.adoptionTimestamp} < NOW() - INTERVAL '7 days'`) : and(gte(petAdoptions.adoptionTimestamp, sql`NOW() - INTERVAL '14 days'`), sql`${petAdoptions.adoptionTimestamp} < NOW() - INTERVAL '7 days'`)),
-      db.select({ date: dateSql, adoptions: count() }).from(petAdoptions).where(whereClause).groupBy(dateSql).orderBy(sql`${dateSql} ASC`),
-      db.select({ name: petAdoptions.platform, value: count() }).from(petAdoptions).where(whereClause).groupBy(petAdoptions.platform).orderBy(sql`count(*) DESC`),
-      db.select({ name: petAdoptions.species, value: count() }).from(petAdoptions).where(whereClause).groupBy(petAdoptions.species).orderBy(sql`count(*) DESC`),
-      db.select({ country: petAdoptions.countryCode, count: count() }).from(petAdoptions).where(whereClause).groupBy(petAdoptions.countryCode),
-      db.select({ name: petAdoptions.species }).from(petAdoptions).groupBy(petAdoptions.species),
-      db.select({ year: sql<number>`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp})::int` }).from(petAdoptions).groupBy(sql`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp})`).orderBy(desc(sql`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp})`)),
-      db.select({ name: petAdoptions.platform }).from(petAdoptions).groupBy(petAdoptions.platform)
+      db.select({ count: sql<number>`COALESCE(SUM(${mvDashboardSummary.adoptionCount}), 0)::int` }).from(mvDashboardSummary).where(whereClause),
+      db.select({ count: sql<number>`COALESCE(SUM(${mvDashboardSummary.adoptionCount}), 0)::int` }).from(mvDashboardSummary).where(whereClause ? and(whereClause, gte(mvDashboardSummary.adoptionDate, sql`NOW() - INTERVAL '7 days'`)) : gte(mvDashboardSummary.adoptionDate, sql`NOW() - INTERVAL '7 days'`)),
+      db.select({ count: sql<number>`COALESCE(SUM(${mvDashboardSummary.adoptionCount}), 0)::int` }).from(mvDashboardSummary).where(whereClause ? and(whereClause, gte(mvDashboardSummary.adoptionDate, sql`NOW() - INTERVAL '14 days'`), sql`${mvDashboardSummary.adoptionDate} < NOW() - INTERVAL '7 days'`) : and(gte(mvDashboardSummary.adoptionDate, sql`NOW() - INTERVAL '14 days'`), sql`${mvDashboardSummary.adoptionDate} < NOW() - INTERVAL '7 days'`)),
+      db.select({ date: sql<string>`${dateCol}::text`, adoptions: sql<number>`SUM(${mvDashboardSummary.adoptionCount})::int` }).from(mvDashboardSummary).where(whereClause).groupBy(dateCol).orderBy(sql`${dateCol} ASC`),
+      db.select({ name: mvDashboardSummary.platform, value: sql<number>`SUM(${mvDashboardSummary.adoptionCount})::int` }).from(mvDashboardSummary).where(whereClause).groupBy(mvDashboardSummary.platform).orderBy(sql`SUM(${mvDashboardSummary.adoptionCount}) DESC`),
+      db.select({ name: mvDashboardSummary.species, value: sql<number>`SUM(${mvDashboardSummary.adoptionCount})::int` }).from(mvDashboardSummary).where(whereClause).groupBy(mvDashboardSummary.species).orderBy(sql`SUM(${mvDashboardSummary.adoptionCount}) DESC`),
+      db.select({ country: mvDashboardSummary.countryCode, count: sql<number>`SUM(${mvDashboardSummary.adoptionCount})::int` }).from(mvDashboardSummary).where(whereClause).groupBy(mvDashboardSummary.countryCode),
+      db.select({ name: mvDashboardSummary.species }).from(mvDashboardSummary).groupBy(mvDashboardSummary.species),
+      db.select({ year: mvDashboardSummary.adoptionYear }).from(mvDashboardSummary).groupBy(mvDashboardSummary.adoptionYear).orderBy(desc(mvDashboardSummary.adoptionYear)),
+      db.select({ name: mvDashboardSummary.platform }).from(mvDashboardSummary).groupBy(mvDashboardSummary.platform)
     ]);
 
-    const totalAdoptions = totalAdoptionsResult[0].count;
-    const adoptionsThisWeek = thisWeekResult[0].count;
-    const adoptionsLastWeek = lastWeekResult[0].count;
+    const totalAdoptions = Number(totalAdoptionsResult[0]?.count || 0);
+    const adoptionsThisWeek = Number(thisWeekResult[0]?.count || 0);
+    const adoptionsLastWeek = Number(lastWeekResult[0]?.count || 0);
 
     let adoptionsThisWeekDelta = 0;
     if (adoptionsLastWeek > 0) {
@@ -92,7 +98,7 @@ export const getDashboardData = unstable_cache(async (
 
     const countryHeatmapData = countryDataResult.reduce((acc, row) => {
       if (row.country) {
-        acc[row.country.toUpperCase()] = row.count;
+        acc[row.country.toUpperCase()] = Number(row.count);
       }
       return acc;
     }, {} as Record<string, number>);
@@ -134,28 +140,41 @@ export const getDashboardData = unstable_cache(async (
 
 export const getCountryDashboardData = unstable_cache(async (
   countryCode: string,
-  filters: { interval?: string; species?: string; year?: string; platform?: string } = {}
+  filters: { interval?: string; species?: string; year?: string; platform?: string; city?: string; shelter?: string } = {}
 ) => {
   try {
-    const baseConditions = [eq(petAdoptions.countryCode, countryCode.toUpperCase())];
+    const baseConditions = [eq(mvDashboardSummary.countryCode, countryCode.toUpperCase())];
+    const rawConditions = [eq(petAdoptions.countryCode, countryCode.toUpperCase())];
     
     if (filters.species && filters.species !== 'all') {
-      baseConditions.push(eq(petAdoptions.species, filters.species));
+      baseConditions.push(eq(mvDashboardSummary.species, filters.species));
+      rawConditions.push(eq(petAdoptions.species, filters.species));
     }
     if (filters.year && filters.year !== 'all') {
-      baseConditions.push(sql`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp}) = ${Number(filters.year)}`);
+      baseConditions.push(eq(mvDashboardSummary.adoptionYear, Number(filters.year)));
+      rawConditions.push(sql`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp}) = ${Number(filters.year)}`);
     }
     if (filters.platform && filters.platform !== 'all') {
-      baseConditions.push(eq(petAdoptions.platform, filters.platform));
+      baseConditions.push(eq(mvDashboardSummary.platform, filters.platform));
+      rawConditions.push(eq(petAdoptions.platform, filters.platform));
+    }
+    if (filters.city && filters.city !== 'all') {
+      baseConditions.push(eq(mvDashboardSummary.city, filters.city));
+      rawConditions.push(eq(petAdoptions.city, filters.city));
+    }
+    if (filters.shelter && filters.shelter !== 'all') {
+      baseConditions.push(eq(mvDashboardSummary.organizationName, filters.shelter));
+      rawConditions.push(eq(petAdoptions.organizationName, filters.shelter));
     }
 
     const whereClause = and(...baseConditions);
+    const rawWhereClause = and(...rawConditions);
 
-    let dateSql = sql<string>`DATE(${petAdoptions.adoptionTimestamp})::text`;
+    let dateCol: any = mvDashboardSummary.adoptionDate;
     if (filters.interval === 'weekly') {
-      dateSql = sql<string>`DATE_TRUNC('week', ${petAdoptions.adoptionTimestamp})::date::text`;
+      dateCol = mvDashboardSummary.adoptionWeek;
     } else if (filters.interval === 'monthly') {
-      dateSql = sql<string>`DATE_TRUNC('month', ${petAdoptions.adoptionTimestamp})::date::text`;
+      dateCol = mvDashboardSummary.adoptionMonth;
     }
 
     const [
@@ -170,23 +189,23 @@ export const getCountryDashboardData = unstable_cache(async (
       availableYearsRaw,
       availablePlatformsRaw
     ] = await Promise.all([
-      db.select({ count: count() }).from(petAdoptions).where(whereClause),
-      db.select({ date: dateSql, adoptions: count() }).from(petAdoptions).where(whereClause).groupBy(dateSql).orderBy(sql`${dateSql} ASC`),
-      db.select().from(petAdoptions).where(whereClause).orderBy(desc(petAdoptions.adoptionTimestamp)).limit(500),
-      db.select({ name: petAdoptions.platform, value: count() }).from(petAdoptions).where(whereClause).groupBy(petAdoptions.platform).orderBy(sql`count(*) DESC`),
-      db.select({ name: petAdoptions.species, value: count() }).from(petAdoptions).where(whereClause).groupBy(petAdoptions.species).orderBy(sql`count(*) DESC`),
-      db.select({ name: petAdoptions.organizationName, value: count() }).from(petAdoptions).where(and(whereClause, isNotNull(petAdoptions.organizationName))).groupBy(petAdoptions.organizationName).orderBy(sql`count(*) DESC`).limit(5),
-      db.select({ name: petAdoptions.city, value: count() }).from(petAdoptions).where(whereClause).groupBy(petAdoptions.city).orderBy(sql`count(*) DESC`).limit(5),
-      db.select({ name: petAdoptions.species }).from(petAdoptions).where(eq(petAdoptions.countryCode, countryCode.toUpperCase())).groupBy(petAdoptions.species),
-      db.select({ year: sql<number>`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp})::int` }).from(petAdoptions).where(eq(petAdoptions.countryCode, countryCode.toUpperCase())).groupBy(sql`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp})`).orderBy(desc(sql`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp})`)),
-      db.select({ name: petAdoptions.platform }).from(petAdoptions).where(eq(petAdoptions.countryCode, countryCode.toUpperCase())).groupBy(petAdoptions.platform)
+      db.select({ count: sql<number>`COALESCE(SUM(${mvDashboardSummary.adoptionCount}), 0)::int` }).from(mvDashboardSummary).where(whereClause),
+      db.select({ date: sql<string>`${dateCol}::text`, adoptions: sql<number>`SUM(${mvDashboardSummary.adoptionCount})::int` }).from(mvDashboardSummary).where(whereClause).groupBy(dateCol).orderBy(sql`${dateCol} ASC`),
+      db.select().from(petAdoptions).where(rawWhereClause).orderBy(desc(petAdoptions.adoptionTimestamp)).limit(500),
+      db.select({ name: mvDashboardSummary.platform, value: sql<number>`SUM(${mvDashboardSummary.adoptionCount})::int` }).from(mvDashboardSummary).where(whereClause).groupBy(mvDashboardSummary.platform).orderBy(sql`SUM(${mvDashboardSummary.adoptionCount}) DESC`),
+      db.select({ name: mvDashboardSummary.species, value: sql<number>`SUM(${mvDashboardSummary.adoptionCount})::int` }).from(mvDashboardSummary).where(whereClause).groupBy(mvDashboardSummary.species).orderBy(sql`SUM(${mvDashboardSummary.adoptionCount}) DESC`),
+      db.select({ name: mvDashboardSummary.organizationName, value: sql<number>`SUM(${mvDashboardSummary.adoptionCount})::int` }).from(mvDashboardSummary).where(and(whereClause, isNotNull(mvDashboardSummary.organizationName))).groupBy(mvDashboardSummary.organizationName).orderBy(sql`SUM(${mvDashboardSummary.adoptionCount}) DESC`).limit(50),
+      db.select({ name: mvDashboardSummary.city, value: sql<number>`SUM(${mvDashboardSummary.adoptionCount})::int` }).from(mvDashboardSummary).where(and(whereClause, isNotNull(mvDashboardSummary.city))).groupBy(mvDashboardSummary.city).orderBy(sql`SUM(${mvDashboardSummary.adoptionCount}) DESC`).limit(50),
+      db.select({ name: mvDashboardSummary.species }).from(mvDashboardSummary).where(eq(mvDashboardSummary.countryCode, countryCode.toUpperCase())).groupBy(mvDashboardSummary.species),
+      db.select({ year: mvDashboardSummary.adoptionYear }).from(mvDashboardSummary).where(eq(mvDashboardSummary.countryCode, countryCode.toUpperCase())).groupBy(mvDashboardSummary.adoptionYear).orderBy(desc(mvDashboardSummary.adoptionYear)),
+      db.select({ name: mvDashboardSummary.platform }).from(mvDashboardSummary).where(eq(mvDashboardSummary.countryCode, countryCode.toUpperCase())).groupBy(mvDashboardSummary.platform)
     ]);
 
-    const totalAdoptions = totalAdoptionsResult[0].count;
+    const totalAdoptions = Number(totalAdoptionsResult[0]?.count || 0);
 
     return {
       totalAdoptions,
-      timeSeriesData: timeSeriesDataResult,
+      timeSeriesData: timeSeriesDataResult.map(d => ({ ...d, adoptions: Number(d.adoptions) })),
       recentAdoptions,
       platformData: platformDataRaw.filter(d => d.name).map(d => ({ name: d.name as string, value: Number(d.value) })),
       speciesData: speciesDataRaw.filter(d => d.name).map(d => ({ name: d.name as string, value: Number(d.value) })),
@@ -217,17 +236,18 @@ export const getCityDirectoryData = unstable_cache(async () => {
   try {
     const data = await db
       .select({
-        city: petAdoptions.city,
-        state: petAdoptions.stateCode,
-        country: petAdoptions.countryCode,
-        totalAdoptions: count().as("total_adoptions"),
-        latestAdoption: sql<string>`max(${petAdoptions.adoptionTimestamp})`.as("latest_adoption"),
+        city: mvDashboardSummary.city,
+        state: mvDashboardSummary.stateCode,
+        country: mvDashboardSummary.countryCode,
+        totalAdoptions: sql<number>`COALESCE(SUM(${mvDashboardSummary.adoptionCount}), 0)::int`.as("total_adoptions"),
+        latestAdoption: sql<string>`max(${mvDashboardSummary.latestAdoption})::text`.as("latest_adoption"),
       })
-      .from(petAdoptions)
-      .where(isNotNull(petAdoptions.city))
-      .groupBy(petAdoptions.city, petAdoptions.stateCode, petAdoptions.countryCode)
-      .orderBy(desc(count()));
-    return data;
+      .from(mvDashboardSummary)
+      .where(isNotNull(mvDashboardSummary.city))
+      .groupBy(mvDashboardSummary.city, mvDashboardSummary.stateCode, mvDashboardSummary.countryCode)
+      .orderBy(desc(sql`SUM(${mvDashboardSummary.adoptionCount})`));
+      
+    return data.map(d => ({ ...d, totalAdoptions: Number(d.totalAdoptions) }));
   } catch (error) {
     console.error("Database query failed for city directory", error);
     return [];
@@ -238,34 +258,47 @@ export const getCityDashboardData = unstable_cache(async (
   countryCode: string,
   stateCode: string,
   city: string,
-  filters: { interval?: string; species?: string; year?: string; platform?: string } = {}
+  filters: { interval?: string; species?: string; year?: string; platform?: string; shelter?: string } = {}
 ) => {
   try {
     const baseConditions = [
+      eq(mvDashboardSummary.countryCode, countryCode.toUpperCase()),
+      eq(mvDashboardSummary.city, city)
+    ];
+    const rawConditions = [
       eq(petAdoptions.countryCode, countryCode.toUpperCase()),
       eq(petAdoptions.city, city)
     ];
     if (stateCode && stateCode !== 'none' && stateCode !== '_') {
-      baseConditions.push(eq(petAdoptions.stateCode, stateCode));
+      baseConditions.push(eq(mvDashboardSummary.stateCode, stateCode));
+      rawConditions.push(eq(petAdoptions.stateCode, stateCode));
     }
     
     if (filters.species && filters.species !== 'all') {
-      baseConditions.push(eq(petAdoptions.species, filters.species));
+      baseConditions.push(eq(mvDashboardSummary.species, filters.species));
+      rawConditions.push(eq(petAdoptions.species, filters.species));
     }
     if (filters.year && filters.year !== 'all') {
-      baseConditions.push(sql`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp}) = ${Number(filters.year)}`);
+      baseConditions.push(eq(mvDashboardSummary.adoptionYear, Number(filters.year)));
+      rawConditions.push(sql`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp}) = ${Number(filters.year)}`);
     }
     if (filters.platform && filters.platform !== 'all') {
-      baseConditions.push(eq(petAdoptions.platform, filters.platform));
+      baseConditions.push(eq(mvDashboardSummary.platform, filters.platform));
+      rawConditions.push(eq(petAdoptions.platform, filters.platform));
+    }
+    if (filters.shelter && filters.shelter !== 'all') {
+      baseConditions.push(eq(mvDashboardSummary.organizationName, filters.shelter));
+      rawConditions.push(eq(petAdoptions.organizationName, filters.shelter));
     }
 
     const whereClause = and(...baseConditions);
+    const rawWhereClause = and(...rawConditions);
 
-    let dateSql = sql<string>`DATE(${petAdoptions.adoptionTimestamp})::text`;
+    let dateCol: any = mvDashboardSummary.adoptionDate;
     if (filters.interval === 'weekly') {
-      dateSql = sql<string>`DATE_TRUNC('week', ${petAdoptions.adoptionTimestamp})::date::text`;
+      dateCol = mvDashboardSummary.adoptionWeek;
     } else if (filters.interval === 'monthly') {
-      dateSql = sql<string>`DATE_TRUNC('month', ${petAdoptions.adoptionTimestamp})::date::text`;
+      dateCol = mvDashboardSummary.adoptionMonth;
     }
 
     const [
@@ -279,22 +312,22 @@ export const getCityDashboardData = unstable_cache(async (
       availableYearsRaw,
       availablePlatformsRaw
     ] = await Promise.all([
-      db.select({ count: count() }).from(petAdoptions).where(whereClause),
-      db.select({ date: dateSql, adoptions: count() }).from(petAdoptions).where(whereClause).groupBy(dateSql).orderBy(sql`${dateSql} ASC`),
-      db.select().from(petAdoptions).where(whereClause).orderBy(desc(petAdoptions.adoptionTimestamp)).limit(500),
-      db.select({ name: petAdoptions.platform, value: count() }).from(petAdoptions).where(whereClause).groupBy(petAdoptions.platform).orderBy(sql`count(*) DESC`),
-      db.select({ name: petAdoptions.species, value: count() }).from(petAdoptions).where(whereClause).groupBy(petAdoptions.species).orderBy(sql`count(*) DESC`),
-      db.select({ name: petAdoptions.organizationName, value: count() }).from(petAdoptions).where(and(whereClause, isNotNull(petAdoptions.organizationName))).groupBy(petAdoptions.organizationName).orderBy(sql`count(*) DESC`).limit(5),
-      db.select({ name: petAdoptions.species }).from(petAdoptions).where(and(eq(petAdoptions.countryCode, countryCode.toUpperCase()), eq(petAdoptions.city, city))).groupBy(petAdoptions.species),
-      db.select({ year: sql<number>`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp})::int` }).from(petAdoptions).where(and(eq(petAdoptions.countryCode, countryCode.toUpperCase()), eq(petAdoptions.city, city))).groupBy(sql`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp})`).orderBy(desc(sql`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp})`)),
-      db.select({ name: petAdoptions.platform }).from(petAdoptions).where(and(eq(petAdoptions.countryCode, countryCode.toUpperCase()), eq(petAdoptions.city, city))).groupBy(petAdoptions.platform)
+      db.select({ count: sql<number>`COALESCE(SUM(${mvDashboardSummary.adoptionCount}), 0)::int` }).from(mvDashboardSummary).where(whereClause),
+      db.select({ date: sql<string>`${dateCol}::text`, adoptions: sql<number>`SUM(${mvDashboardSummary.adoptionCount})::int` }).from(mvDashboardSummary).where(whereClause).groupBy(dateCol).orderBy(sql`${dateCol} ASC`),
+      db.select().from(petAdoptions).where(rawWhereClause).orderBy(desc(petAdoptions.adoptionTimestamp)).limit(500),
+      db.select({ name: mvDashboardSummary.platform, value: sql<number>`SUM(${mvDashboardSummary.adoptionCount})::int` }).from(mvDashboardSummary).where(whereClause).groupBy(mvDashboardSummary.platform).orderBy(sql`SUM(${mvDashboardSummary.adoptionCount}) DESC`),
+      db.select({ name: mvDashboardSummary.species, value: sql<number>`SUM(${mvDashboardSummary.adoptionCount})::int` }).from(mvDashboardSummary).where(whereClause).groupBy(mvDashboardSummary.species).orderBy(sql`SUM(${mvDashboardSummary.adoptionCount}) DESC`),
+      db.select({ name: mvDashboardSummary.organizationName, value: sql<number>`SUM(${mvDashboardSummary.adoptionCount})::int` }).from(mvDashboardSummary).where(and(whereClause, isNotNull(mvDashboardSummary.organizationName))).groupBy(mvDashboardSummary.organizationName).orderBy(sql`SUM(${mvDashboardSummary.adoptionCount}) DESC`).limit(50),
+      db.select({ name: mvDashboardSummary.species }).from(mvDashboardSummary).where(and(eq(mvDashboardSummary.countryCode, countryCode.toUpperCase()), eq(mvDashboardSummary.city, city))).groupBy(mvDashboardSummary.species),
+      db.select({ year: mvDashboardSummary.adoptionYear }).from(mvDashboardSummary).where(and(eq(mvDashboardSummary.countryCode, countryCode.toUpperCase()), eq(mvDashboardSummary.city, city))).groupBy(mvDashboardSummary.adoptionYear).orderBy(desc(mvDashboardSummary.adoptionYear)),
+      db.select({ name: mvDashboardSummary.platform }).from(mvDashboardSummary).where(and(eq(mvDashboardSummary.countryCode, countryCode.toUpperCase()), eq(mvDashboardSummary.city, city))).groupBy(mvDashboardSummary.platform)
     ]);
 
-    const totalAdoptions = totalAdoptionsResult[0].count;
+    const totalAdoptions = Number(totalAdoptionsResult[0]?.count || 0);
 
     return {
       totalAdoptions,
-      timeSeriesData: timeSeriesDataResult,
+      timeSeriesData: timeSeriesDataResult.map(d => ({ ...d, adoptions: Number(d.adoptions) })),
       recentAdoptions,
       platformData: platformDataRaw.filter(d => d.name).map(d => ({ name: d.name as string, value: Number(d.value) })),
       speciesData: speciesDataRaw.filter(d => d.name).map(d => ({ name: d.name as string, value: Number(d.value) })),
@@ -323,15 +356,15 @@ export const getOrganizationDirectoryData = unstable_cache(async () => {
   try {
     const data = await db
       .select({
-        organizationName: petAdoptions.organizationName,
-        totalAdoptions: count().as("total_adoptions"),
-        latestAdoption: sql<string>`max(${petAdoptions.adoptionTimestamp})`.as("latest_adoption"),
+        organizationName: mvDashboardSummary.organizationName,
+        totalAdoptions: sql<number>`COALESCE(SUM(${mvDashboardSummary.adoptionCount}), 0)::int`.as("total_adoptions"),
+        latestAdoption: sql<string>`max(${mvDashboardSummary.latestAdoption})::text`.as("latest_adoption"),
       })
-      .from(petAdoptions)
-      .where(isNotNull(petAdoptions.organizationName))
-      .groupBy(petAdoptions.organizationName)
-      .orderBy(desc(count()));
-    return data;
+      .from(mvDashboardSummary)
+      .where(isNotNull(mvDashboardSummary.organizationName))
+      .groupBy(mvDashboardSummary.organizationName)
+      .orderBy(desc(sql`SUM(${mvDashboardSummary.adoptionCount})`));
+    return data.map(d => ({ ...d, totalAdoptions: Number(d.totalAdoptions) }));
   } catch (error) {
     console.error("Database query failed for org directory", error);
     return [];
@@ -340,30 +373,41 @@ export const getOrganizationDirectoryData = unstable_cache(async () => {
 
 export const getOrganizationDashboardData = unstable_cache(async (
   orgName: string,
-  filters: { interval?: string; species?: string; year?: string; platform?: string } = {}
+  filters: { interval?: string; species?: string; year?: string; platform?: string; city?: string } = {}
 ) => {
   try {
     const baseConditions = [
+      eq(mvDashboardSummary.organizationName, orgName)
+    ];
+    const rawConditions = [
       eq(petAdoptions.organizationName, orgName)
     ];
     
     if (filters.species && filters.species !== 'all') {
-      baseConditions.push(eq(petAdoptions.species, filters.species));
+      baseConditions.push(eq(mvDashboardSummary.species, filters.species));
+      rawConditions.push(eq(petAdoptions.species, filters.species));
     }
     if (filters.year && filters.year !== 'all') {
-      baseConditions.push(sql`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp}) = ${Number(filters.year)}`);
+      baseConditions.push(eq(mvDashboardSummary.adoptionYear, Number(filters.year)));
+      rawConditions.push(sql`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp}) = ${Number(filters.year)}`);
     }
     if (filters.platform && filters.platform !== 'all') {
-      baseConditions.push(eq(petAdoptions.platform, filters.platform));
+      baseConditions.push(eq(mvDashboardSummary.platform, filters.platform));
+      rawConditions.push(eq(petAdoptions.platform, filters.platform));
+    }
+    if (filters.city && filters.city !== 'all') {
+      baseConditions.push(eq(mvDashboardSummary.city, filters.city));
+      rawConditions.push(eq(petAdoptions.city, filters.city));
     }
 
     const whereClause = and(...baseConditions);
+    const rawWhereClause = and(...rawConditions);
 
-    let dateSql = sql<string>`DATE(${petAdoptions.adoptionTimestamp})::text`;
+    let dateCol: any = mvDashboardSummary.adoptionDate;
     if (filters.interval === 'weekly') {
-      dateSql = sql<string>`DATE_TRUNC('week', ${petAdoptions.adoptionTimestamp})::date::text`;
+      dateCol = mvDashboardSummary.adoptionWeek;
     } else if (filters.interval === 'monthly') {
-      dateSql = sql<string>`DATE_TRUNC('month', ${petAdoptions.adoptionTimestamp})::date::text`;
+      dateCol = mvDashboardSummary.adoptionMonth;
     }
 
     const [
@@ -377,22 +421,22 @@ export const getOrganizationDashboardData = unstable_cache(async (
       availableYearsRaw,
       availablePlatformsRaw
     ] = await Promise.all([
-      db.select({ count: count() }).from(petAdoptions).where(whereClause),
-      db.select({ date: dateSql, adoptions: count() }).from(petAdoptions).where(whereClause).groupBy(dateSql).orderBy(sql`${dateSql} ASC`),
-      db.select().from(petAdoptions).where(whereClause).orderBy(desc(petAdoptions.adoptionTimestamp)).limit(500),
-      db.select({ name: petAdoptions.platform, value: count() }).from(petAdoptions).where(whereClause).groupBy(petAdoptions.platform).orderBy(sql`count(*) DESC`),
-      db.select({ name: petAdoptions.species, value: count() }).from(petAdoptions).where(whereClause).groupBy(petAdoptions.species).orderBy(sql`count(*) DESC`),
-      db.select({ name: petAdoptions.city, value: count() }).from(petAdoptions).where(and(whereClause, isNotNull(petAdoptions.city))).groupBy(petAdoptions.city).orderBy(sql`count(*) DESC`).limit(5),
-      db.select({ name: petAdoptions.species }).from(petAdoptions).where(eq(petAdoptions.organizationName, orgName)).groupBy(petAdoptions.species),
-      db.select({ year: sql<number>`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp})::int` }).from(petAdoptions).where(eq(petAdoptions.organizationName, orgName)).groupBy(sql`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp})`).orderBy(desc(sql`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp})`)),
-      db.select({ name: petAdoptions.platform }).from(petAdoptions).where(eq(petAdoptions.organizationName, orgName)).groupBy(petAdoptions.platform)
+      db.select({ count: sql<number>`COALESCE(SUM(${mvDashboardSummary.adoptionCount}), 0)::int` }).from(mvDashboardSummary).where(whereClause),
+      db.select({ date: sql<string>`${dateCol}::text`, adoptions: sql<number>`SUM(${mvDashboardSummary.adoptionCount})::int` }).from(mvDashboardSummary).where(whereClause).groupBy(dateCol).orderBy(sql`${dateCol} ASC`),
+      db.select().from(petAdoptions).where(rawWhereClause).orderBy(desc(petAdoptions.adoptionTimestamp)).limit(500),
+      db.select({ name: mvDashboardSummary.platform, value: sql<number>`SUM(${mvDashboardSummary.adoptionCount})::int` }).from(mvDashboardSummary).where(whereClause).groupBy(mvDashboardSummary.platform).orderBy(sql`SUM(${mvDashboardSummary.adoptionCount}) DESC`),
+      db.select({ name: mvDashboardSummary.species, value: sql<number>`SUM(${mvDashboardSummary.adoptionCount})::int` }).from(mvDashboardSummary).where(whereClause).groupBy(mvDashboardSummary.species).orderBy(sql`SUM(${mvDashboardSummary.adoptionCount}) DESC`),
+      db.select({ name: mvDashboardSummary.city, value: sql<number>`SUM(${mvDashboardSummary.adoptionCount})::int` }).from(mvDashboardSummary).where(and(whereClause, isNotNull(mvDashboardSummary.city))).groupBy(mvDashboardSummary.city).orderBy(sql`SUM(${mvDashboardSummary.adoptionCount}) DESC`).limit(50),
+      db.select({ name: mvDashboardSummary.species }).from(mvDashboardSummary).where(eq(mvDashboardSummary.organizationName, orgName)).groupBy(mvDashboardSummary.species),
+      db.select({ year: mvDashboardSummary.adoptionYear }).from(mvDashboardSummary).where(eq(mvDashboardSummary.organizationName, orgName)).groupBy(mvDashboardSummary.adoptionYear).orderBy(desc(mvDashboardSummary.adoptionYear)),
+      db.select({ name: mvDashboardSummary.platform }).from(mvDashboardSummary).where(eq(mvDashboardSummary.organizationName, orgName)).groupBy(mvDashboardSummary.platform)
     ]);
 
-    const totalAdoptions = totalAdoptionsResult[0].count;
+    const totalAdoptions = Number(totalAdoptionsResult[0]?.count || 0);
 
     return {
       totalAdoptions,
-      timeSeriesData: timeSeriesDataResult,
+      timeSeriesData: timeSeriesDataResult.map(d => ({ ...d, adoptions: Number(d.adoptions) })),
       recentAdoptions,
       platformData: platformDataRaw.filter(d => d.name).map(d => ({ name: d.name as string, value: Number(d.value) })),
       speciesData: speciesDataRaw.filter(d => d.name).map(d => ({ name: d.name as string, value: Number(d.value) })),

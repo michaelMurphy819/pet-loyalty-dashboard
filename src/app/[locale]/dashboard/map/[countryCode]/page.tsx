@@ -24,6 +24,8 @@ export default async function CountryDashboardPage({
     species: typeof resolvedSearchParams.species === 'string' ? resolvedSearchParams.species : undefined,
     year: typeof resolvedSearchParams.year === 'string' ? resolvedSearchParams.year : undefined,
     platform: typeof resolvedSearchParams.platform === 'string' ? resolvedSearchParams.platform : undefined,
+    city: typeof resolvedSearchParams.city === 'string' ? resolvedSearchParams.city : undefined,
+    shelter: typeof resolvedSearchParams.shelter === 'string' ? resolvedSearchParams.shelter : undefined,
   };
 
   const data = await getCountryDashboardData(code, filters);
@@ -77,13 +79,13 @@ export default async function CountryDashboardPage({
         
         {/* Breakdown Charts */}
         <div className="grid gap-6 md:grid-cols-2">
-          <DynamicCountryPieChart data={data.speciesData} title="Species Breakdown" />
-          <DynamicCountryPieChart data={data.platformData} title="Platform Distribution" />
+          <DynamicCountryPieChart data={data.speciesData} title="Species Breakdown" filterKey="species" />
+          <DynamicCountryPieChart data={data.platformData} title="Platform Distribution" filterKey="platform" />
         </div>
         
         <div className="grid gap-6 md:grid-cols-2">
-          <DynamicCountryLocationBarChart data={data.cityData} title="Top Cities" />
-          <DynamicCountryLocationBarChart data={data.shelterData} title="Top Shelters" />
+          <DynamicCountryLocationBarChart data={data.cityData} title="Top Cities" filterKey="city" />
+          <DynamicCountryLocationBarChart data={data.shelterData} title="Top Shelters" filterKey="shelter" />
         </div>
 
         {/* Raw Data Table at the very bottom */}
