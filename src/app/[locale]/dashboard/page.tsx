@@ -2,7 +2,15 @@ import { getDashboardData } from "@/queries/dashboard";
 import { KPICards } from "@/components/kpi-cards";
 import { DashboardFilters } from "@/components/dashboard-filters";
 import { getTranslations } from "next-intl/server";
-import { DynamicPlatformPieChart, DynamicSpeciesBarChart, DynamicTimeSeriesAreaChart } from "@/components/charts/dynamic-charts";
+import { DynamicPlatformPieChart, DynamicSpeciesBarChart } from "@/components/charts/dynamic-charts";
+import {
+  DynamicLocationLeaderboardChart,
+  DynamicOrganizationsDataTable,
+  DynamicPlatformDominanceChart,
+  DynamicBreedsLeaderboardChart,
+  DynamicDayOfWeekHeatmap,
+  DynamicAdoptionsOverTimeWithMovingAvg,
+} from "@/components/analytics/dynamic-bi-charts";
 
 export const revalidate = 60; // ISR cache revalidation every 60 seconds
 
@@ -24,40 +32,71 @@ export default async function DashboardPage({
   const t = await getTranslations("Dashboard");
 
   return (
-    <div className="flex flex-col gap-6 p-6 md:p-10 max-w-[1400px] mx-auto">
-      <div className="flex flex-col space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">{t('title')}</h1>
-        <p className="text-slate-500">
-          {t('subtitle')}
+    <div className="flex flex-col gap-8 p-5 md:p-8 max-w-[1600px] mx-auto min-w-0 w-full overflow-x-hidden bg-slate-50/70">
+      {/* Page Header */}
+      <div className="flex flex-col space-y-1 border-b border-slate-200/80 pb-4">
+        <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-slate-900 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+          {t('title')}
+        </h1>
+        <p className="text-sm text-slate-600 font-medium">
+          {t('subtitle')} &mdash; Click any slice, chart column, or tag to dynamically cross-filter all analytics.
         </p>
       </div>
 
-      <div className="flex flex-col space-y-6">
-        {/* Top Row: KPIs */}
-        <KPICards 
-          totalAdoptions={data.totalAdoptions} 
-          adoptionsThisWeek={data.adoptionsThisWeek} 
-          totalAdoptionsDelta={data.totalAdoptionsDelta}
-          adoptionsThisWeekDelta={data.adoptionsThisWeekDelta}
-        />
-        
-        {/* Filter Bar */}
-        <DashboardFilters 
-          availableSpecies={data.availableSpecies} 
-          availableYears={data.availableYears} 
-          availablePlatforms={data.availablePlatforms} 
-        />
+      <div className="flex flex-col space-y-7 w-full min-w-0">
+        {/* Top Row: Executive KPIs & Interactive Filters */}
+        <div className="flex flex-col gap-4">
+          <KPICards 
+            totalAdoptions={data.totalAdoptions} 
+            adoptionsThisWeek={data.adoptionsThisWeek} 
+            totalAdoptionsDelta={data.totalAdoptionsDelta}
+            adoptionsThisWeekDelta={data.adoptionsThisWeekDelta}
+          />
+          <DashboardFilters 
+            availableSpecies={data.availableSpecies} 
+            availableYears={data.availableYears} 
+            availablePlatforms={data.availablePlatforms} 
+          />
+        </div>
 
-        <div className="col-span-full">
-          <DynamicTimeSeriesAreaChart data={data.timeSeriesData} />
+        {/* Row 1 (Full Width): Adoptions Over Time */}
+        <div className="w-full min-w-0">
+          <DynamicAdoptionsOverTimeWithMovingAvg />
         </div>
-        
-        <div className="col-span-full lg:col-span-1">
-          <DynamicPlatformPieChart data={data.platformData} />
+
+        {/* Row 2 (Full Width, Compact & Short): Day of Week Volume Heatmap */}
+        <div className="w-full min-w-0">
+          <DynamicDayOfWeekHeatmap />
         </div>
-        
-        <div className="col-span-full lg:col-span-1">
-          <DynamicSpeciesBarChart data={data.speciesData} />
+
+        {/* Row 3: Channel Market Share & Regional Dominance (Strict 2 Graphs Side-by-Side) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 min-w-0 w-full items-stretch">
+          <div className="min-w-0 w-full flex">
+            <DynamicPlatformPieChart data={data.platformData} />
+          </div>
+          <div className="min-w-0 w-full flex">
+            <DynamicPlatformDominanceChart />
+          </div>
+        </div>
+
+        {/* Row 4: Species Distribution & Primary Breed Analytics (Strict 2 Graphs Side-by-Side) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 min-w-0 w-full items-stretch">
+          <div className="min-w-0 w-full flex">
+            <DynamicSpeciesBarChart data={data.speciesData} />
+          </div>
+          <div className="min-w-0 w-full flex">
+            <DynamicBreedsLeaderboardChart selectedSpecies={filters.species} />
+          </div>
+        </div>
+
+        {/* Row 5: Geographic Municipalities & Rescue Partner Directory (Strict 2 Graphs Side-by-Side) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 min-w-0 w-full items-stretch">
+          <div className="min-w-0 w-full flex">
+            <DynamicLocationLeaderboardChart />
+          </div>
+          <div className="min-w-0 w-full flex">
+            <DynamicOrganizationsDataTable />
+          </div>
         </div>
       </div>
     </div>

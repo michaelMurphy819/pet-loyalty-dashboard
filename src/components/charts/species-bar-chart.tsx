@@ -1,15 +1,18 @@
 "use client";
 
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import { Card, CardContent } from "@/components/ui/card";
 import { useTranslations } from "next-intl";
-import { Info } from "lucide-react";
+import { Info, PawPrint } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 interface DataItem {
   name: string;
   value: number;
 }
+
+// Engaging spectrum of rich violets, purples, and indigo accents for species columns
+const SPECIES_COLORS = ["#7c3aed", "#6366f1", "#8b5cf6", "#a855f7", "#ec4899", "#f43f5e", "#06b6d4", "#10b981", "#3b82f6"];
 
 export function SpeciesBarChart({ data }: { data: DataItem[] }) {
   const t = useTranslations("Dashboard");
@@ -38,40 +41,47 @@ export function SpeciesBarChart({ data }: { data: DataItem[] }) {
   };
 
   return (
-    <Card className="shadow-sm border-slate-200 flex flex-col justify-between overflow-hidden min-w-0 w-full h-full">
-      <CardHeader>
-        <div className="flex items-center gap-2 truncate">
-          <CardTitle className="text-lg font-bold truncate">{t("charts.adoptionsBySpecies")}</CardTitle>
-          <div title={tReporting("tooltips.species")} className="cursor-help shrink-0">
-            <Info className="w-4 h-4 text-slate-400 hover:text-indigo-500 transition-colors" />
+    <Card className="border border-slate-200/80 bg-white shadow-sm hover:shadow-md transition-all rounded-2xl flex flex-col justify-between overflow-hidden min-w-0 w-full h-[380px]">
+      <div className="py-3 px-5 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-2">
+          <div className="p-1.5 rounded-lg bg-emerald-100 text-emerald-700 font-bold shadow-2xs">
+            <PawPrint className="w-4 h-4" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-slate-900 leading-none truncate">{t("charts.adoptionsBySpecies")}</h3>
+            <p className="text-[11px] text-slate-500 mt-0.5">Comparative volume across recorded animal species</p>
           </div>
         </div>
-      </CardHeader>
-      <CardContent className="pt-4 flex flex-col gap-4 overflow-hidden min-w-0 w-full">
-        <div className="w-full relative shrink-0" style={{ height: "280px", minHeight: "280px", width: "100%" }}>
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={processedData} margin={{ top: 10, right: 20, left: 10, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 12 }} />
-              <YAxis scale="sqrt" domain={[0, "auto"]} axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 12 }} />
+        <div title={tReporting("tooltips.species")} className="cursor-help shrink-0">
+          <Info className="w-4 h-4 text-slate-400 hover:text-emerald-600 transition-colors" />
+        </div>
+      </div>
+
+      <CardContent className="p-4 flex-1 flex flex-col justify-center overflow-hidden min-w-0 w-full">
+        <div className="w-full relative shrink-0" style={{ height: "260px", minHeight: "260px", width: "100%" }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={processedData} margin={{ top: 10, right: 15, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 11, fontWeight: 600 }} />
+              <YAxis scale="sqrt" domain={[0, "auto"]} axisLine={false} tickLine={false} tick={{ fill: "#64748b", fontSize: 11, fontWeight: 500 }} tickFormatter={(v) => Number(v).toLocaleString()} />
               <Tooltip
-                cursor={{ fill: "#f1f5f9" }}
+                cursor={{ fill: "#f8fafc" }}
                 formatter={(value: any, name: any) => [Number(value).toLocaleString(), name]}
-                contentStyle={{ borderRadius: "8px", border: "none", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)" }}
+                contentStyle={{ borderRadius: "10px", border: "1px solid #e2e8f0", backgroundColor: "#ffffff", fontSize: "12px", fontWeight: 600, boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.08)" }}
               />
               <Bar 
                 dataKey="value" 
-                fill="#6366f1" 
-                radius={[4, 4, 0, 0]} 
+                radius={[6, 6, 0, 0]} 
                 onClick={handleBarClick}
                 style={{ cursor: "pointer" }}
-              />
+              >
+                {processedData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={SPECIES_COLORS[index % SPECIES_COLORS.length]} />
+                ))}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
-        <p className="text-xs text-slate-400 text-center mt-2 truncate">
-          Click on a bar to filter the dashboard by species. Click again to clear.
-        </p>
       </CardContent>
     </Card>
   );

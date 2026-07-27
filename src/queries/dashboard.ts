@@ -2,10 +2,15 @@ import { db } from "@/lib/db";
 import { petAdoptions, mvDashboardSummary } from "@/lib/db/schema";
 import { count, sql, gte, eq, desc, and, isNotNull } from "drizzle-orm";
 import { unstable_cache } from "next/cache";
+import { getServerCache, setServerCache } from "@/lib/server-cache";
 
 export const getDashboardData = unstable_cache(async (
   filters: { interval?: string; species?: string; year?: string; platform?: string; city?: string; shelter?: string } = {}
 ) => {
+  const cacheKey = `dash-global:${JSON.stringify(filters)}`;
+  const cached = getServerCache(cacheKey);
+  if (cached) return cached;
+
   try {
     const baseConditions = [];
     
@@ -103,7 +108,7 @@ export const getDashboardData = unstable_cache(async (
       return acc;
     }, {} as Record<string, number>);
 
-    return {
+    const payload = {
       totalAdoptions,
       totalAdoptionsDelta,
       adoptionsThisWeek,
@@ -120,6 +125,9 @@ export const getDashboardData = unstable_cache(async (
       availableYears: availableYearsRaw.map(d => d.year.toString()).filter(Boolean),
       availablePlatforms: availablePlatformsRaw.map(d => d.name as string).filter(Boolean),
     };
+    
+    setServerCache(cacheKey, payload, 600); // 10 minute server memory cache
+    return payload;
   } catch (error) {
     console.error("Database query failed", error);
     return {
@@ -142,6 +150,10 @@ export const getCountryDashboardData = unstable_cache(async (
   countryCode: string,
   filters: { interval?: string; species?: string; year?: string; platform?: string; city?: string; shelter?: string } = {}
 ) => {
+  const cacheKey = `dash-country:${countryCode}:${JSON.stringify(filters)}`;
+  const cached = getServerCache(cacheKey);
+  if (cached) return cached;
+
   try {
     const baseConditions = [eq(mvDashboardSummary.countryCode, countryCode.toUpperCase())];
     const rawConditions = [eq(petAdoptions.countryCode, countryCode.toUpperCase())];
@@ -152,7 +164,9 @@ export const getCountryDashboardData = unstable_cache(async (
     }
     if (filters.year && filters.year !== 'all') {
       baseConditions.push(eq(mvDashboardSummary.adoptionYear, Number(filters.year)));
-      rawConditions.push(sql`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp}) = ${Number(filters.year)}`);
+      const startOfYear = `${filters.year}-01-01 00:00:00`;
+      const endOfYear = `${filters.year}-12-31 23:59:59.999`;
+      rawConditions.push(sql`${petAdoptions.adoptionTimestamp} >= ${startOfYear}::timestamp AND ${petAdoptions.adoptionTimestamp} <= ${endOfYear}::timestamp`);
     }
     if (filters.platform && filters.platform !== 'all') {
       baseConditions.push(eq(mvDashboardSummary.platform, filters.platform));
@@ -203,7 +217,7 @@ export const getCountryDashboardData = unstable_cache(async (
 
     const totalAdoptions = Number(totalAdoptionsResult[0]?.count || 0);
 
-    return {
+    const payload = {
       totalAdoptions,
       timeSeriesData: timeSeriesDataResult.map(d => ({ ...d, adoptions: Number(d.adoptions) })),
       recentAdoptions,
@@ -215,6 +229,9 @@ export const getCountryDashboardData = unstable_cache(async (
       availableYears: availableYearsRaw.map(d => d.year.toString()).filter(Boolean),
       availablePlatforms: availablePlatformsRaw.map(d => d.name as string).filter(Boolean),
     };
+    
+    setServerCache(cacheKey, payload, 600);
+    return payload;
   } catch (error) {
     console.error("Database query failed for country", error);
     return {
@@ -233,6 +250,10 @@ export const getCountryDashboardData = unstable_cache(async (
 }, ['dashboard-data-country'], { revalidate: 3600 });
 
 export const getCityDirectoryData = unstable_cache(async () => {
+  const cacheKey = `dash-city-dir`;
+  const cached = getServerCache(cacheKey);
+  if (cached) return cached;
+
   try {
     const data = await db
       .select({
@@ -247,7 +268,9 @@ export const getCityDirectoryData = unstable_cache(async () => {
       .groupBy(mvDashboardSummary.city, mvDashboardSummary.stateCode, mvDashboardSummary.countryCode)
       .orderBy(desc(sql`SUM(${mvDashboardSummary.adoptionCount})`));
       
-    return data.map(d => ({ ...d, totalAdoptions: Number(d.totalAdoptions) }));
+    const payload = data.map(d => ({ ...d, totalAdoptions: Number(d.totalAdoptions) }));
+    setServerCache(cacheKey, payload, 600);
+    return payload;
   } catch (error) {
     console.error("Database query failed for city directory", error);
     return [];
@@ -260,6 +283,10 @@ export const getCityDashboardData = unstable_cache(async (
   city: string,
   filters: { interval?: string; species?: string; year?: string; platform?: string; shelter?: string } = {}
 ) => {
+  const cacheKey = `dash-city:${countryCode}:${stateCode}:${city}:${JSON.stringify(filters)}`;
+  const cached = getServerCache(cacheKey);
+  if (cached) return cached;
+
   try {
     const baseConditions = [
       eq(mvDashboardSummary.countryCode, countryCode.toUpperCase()),
@@ -280,7 +307,9 @@ export const getCityDashboardData = unstable_cache(async (
     }
     if (filters.year && filters.year !== 'all') {
       baseConditions.push(eq(mvDashboardSummary.adoptionYear, Number(filters.year)));
-      rawConditions.push(sql`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp}) = ${Number(filters.year)}`);
+      const startOfYear = `${filters.year}-01-01 00:00:00`;
+      const endOfYear = `${filters.year}-12-31 23:59:59.999`;
+      rawConditions.push(sql`${petAdoptions.adoptionTimestamp} >= ${startOfYear}::timestamp AND ${petAdoptions.adoptionTimestamp} <= ${endOfYear}::timestamp`);
     }
     if (filters.platform && filters.platform !== 'all') {
       baseConditions.push(eq(mvDashboardSummary.platform, filters.platform));
@@ -325,7 +354,7 @@ export const getCityDashboardData = unstable_cache(async (
 
     const totalAdoptions = Number(totalAdoptionsResult[0]?.count || 0);
 
-    return {
+    const payload = {
       totalAdoptions,
       timeSeriesData: timeSeriesDataResult.map(d => ({ ...d, adoptions: Number(d.adoptions) })),
       recentAdoptions,
@@ -336,6 +365,9 @@ export const getCityDashboardData = unstable_cache(async (
       availableYears: availableYearsRaw.map(d => d.year.toString()).filter(Boolean),
       availablePlatforms: availablePlatformsRaw.map(d => d.name as string).filter(Boolean),
     };
+    
+    setServerCache(cacheKey, payload, 600);
+    return payload;
   } catch (error) {
     console.error("Database query failed for city dashboard", error);
     return {
@@ -353,6 +385,10 @@ export const getCityDashboardData = unstable_cache(async (
 }, ['dashboard-data-city'], { revalidate: 3600 });
 
 export const getOrganizationDirectoryData = unstable_cache(async () => {
+  const cacheKey = `dash-org-dir`;
+  const cached = getServerCache(cacheKey);
+  if (cached) return cached;
+
   try {
     const data = await db
       .select({
@@ -364,7 +400,9 @@ export const getOrganizationDirectoryData = unstable_cache(async () => {
       .where(isNotNull(mvDashboardSummary.organizationName))
       .groupBy(mvDashboardSummary.organizationName)
       .orderBy(desc(sql`SUM(${mvDashboardSummary.adoptionCount})`));
-    return data.map(d => ({ ...d, totalAdoptions: Number(d.totalAdoptions) }));
+    const payload = data.map(d => ({ ...d, totalAdoptions: Number(d.totalAdoptions) }));
+    setServerCache(cacheKey, payload, 600);
+    return payload;
   } catch (error) {
     console.error("Database query failed for org directory", error);
     return [];
@@ -375,6 +413,10 @@ export const getOrganizationDashboardData = unstable_cache(async (
   orgName: string,
   filters: { interval?: string; species?: string; year?: string; platform?: string; city?: string } = {}
 ) => {
+  const cacheKey = `dash-org:${orgName}:${JSON.stringify(filters)}`;
+  const cached = getServerCache(cacheKey);
+  if (cached) return cached;
+
   try {
     const baseConditions = [
       eq(mvDashboardSummary.organizationName, orgName)
@@ -389,7 +431,9 @@ export const getOrganizationDashboardData = unstable_cache(async (
     }
     if (filters.year && filters.year !== 'all') {
       baseConditions.push(eq(mvDashboardSummary.adoptionYear, Number(filters.year)));
-      rawConditions.push(sql`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp}) = ${Number(filters.year)}`);
+      const startOfYear = `${filters.year}-01-01 00:00:00`;
+      const endOfYear = `${filters.year}-12-31 23:59:59.999`;
+      rawConditions.push(sql`${petAdoptions.adoptionTimestamp} >= ${startOfYear}::timestamp AND ${petAdoptions.adoptionTimestamp} <= ${endOfYear}::timestamp`);
     }
     if (filters.platform && filters.platform !== 'all') {
       baseConditions.push(eq(mvDashboardSummary.platform, filters.platform));
@@ -434,7 +478,7 @@ export const getOrganizationDashboardData = unstable_cache(async (
 
     const totalAdoptions = Number(totalAdoptionsResult[0]?.count || 0);
 
-    return {
+    const payload = {
       totalAdoptions,
       timeSeriesData: timeSeriesDataResult.map(d => ({ ...d, adoptions: Number(d.adoptions) })),
       recentAdoptions,
@@ -445,6 +489,9 @@ export const getOrganizationDashboardData = unstable_cache(async (
       availableYears: availableYearsRaw.map(d => d.year.toString()).filter(Boolean),
       availablePlatforms: availablePlatformsRaw.map(d => d.name as string).filter(Boolean),
     };
+    
+    setServerCache(cacheKey, payload, 600);
+    return payload;
   } catch (error) {
     console.error("Database query failed for org dashboard", error);
     return {

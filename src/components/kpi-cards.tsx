@@ -1,6 +1,6 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Users, Calendar, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { useTranslations } from "next-intl";
 
@@ -16,57 +16,69 @@ function BenchmarkIndicator({ delta }: { delta: number }) {
   
   if (delta > 0) {
     return (
-      <div className="flex items-center text-xs font-medium text-emerald-600 mt-1">
-        <TrendingUp className="w-3 h-3 mr-1" />
+      <span className="inline-flex items-center text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200/80 shadow-2xs mt-2">
+        <TrendingUp className="w-3.5 h-3.5 mr-1 text-emerald-600" />
         {t("up", { percent: delta })}
-      </div>
+      </span>
     );
   } else if (delta < 0) {
     return (
-      <div className="flex items-center text-xs font-medium text-rose-600 mt-1">
-        <TrendingDown className="w-3 h-3 mr-1" />
+      <span className="inline-flex items-center text-xs font-bold text-rose-700 bg-rose-50 px-2.5 py-1 rounded-md border border-rose-200/80 shadow-2xs mt-2">
+        <TrendingDown className="w-3.5 h-3.5 mr-1 text-rose-600" />
         {t("down", { percent: Math.abs(delta) })}
-      </div>
+      </span>
     );
   } else {
     return (
-      <div className="flex items-center text-xs font-medium text-slate-500 mt-1">
-        <Minus className="w-3 h-3 mr-1" />
+      <span className="inline-flex items-center text-xs font-semibold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200 mt-2">
+        <Minus className="w-3.5 h-3.5 mr-1 text-slate-500" />
         {t("noChange")}
-      </div>
+      </span>
     );
   }
 }
 
-export function KPICards({ totalAdoptions, adoptionsThisWeek, totalAdoptionsDelta, adoptionsThisWeekDelta }: KPICardsProps) {
+export function KPICards({ totalAdoptions, adoptionsThisWeek, adoptionsThisWeekDelta }: KPICardsProps) {
   const t = useTranslations("Dashboard.kpi");
 
   return (
-    <div className="grid gap-4 md:grid-cols-2">
-      <Card className="shadow-sm border-slate-200">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium text-slate-500">
-            {t("totalAdoptions")}
-          </CardTitle>
-          <Users className="h-4 w-4 text-slate-400" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-3xl font-bold text-slate-800">{totalAdoptions.toLocaleString()}</div>
-          <BenchmarkIndicator delta={totalAdoptionsDelta} />
-        </CardContent>
+    <div className="grid gap-5 sm:grid-cols-2 md:grid-cols-2 w-full">
+      {/* Card 1: Total Adoptions */}
+      <Card className="border border-slate-200/80 bg-white shadow-sm hover:shadow-md transition-all rounded-2xl p-5 overflow-hidden relative group w-full">
+        <div className="flex items-start justify-between">
+          <div className="flex flex-col">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
+              {t("totalAdoptions")}
+            </span>
+            <div className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight my-1">
+              {totalAdoptions.toLocaleString()}
+            </div>
+            <p className="text-xs text-slate-400 mt-1 font-medium">Recorded across all verified partner organizations</p>
+          </div>
+          <div className="p-3 rounded-2xl bg-indigo-50 border border-indigo-100 text-indigo-600 shadow-2xs group-hover:scale-105 transition-transform">
+            <Users className="w-6 h-6" />
+          </div>
+        </div>
       </Card>
       
-      <Card className="shadow-sm border-slate-200">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium text-slate-500">
-            {t("thisWeek")}
-          </CardTitle>
-          <Calendar className="h-4 w-4 text-slate-400" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-3xl font-bold text-slate-800">{adoptionsThisWeek.toLocaleString()}</div>
-          <BenchmarkIndicator delta={adoptionsThisWeekDelta} />
-        </CardContent>
+      {/* Card 2: Adoptions This Week */}
+      <Card className="border border-slate-200/80 bg-white shadow-sm hover:shadow-md transition-all rounded-2xl p-5 overflow-hidden relative group w-full">
+        <div className="flex items-start justify-between">
+          <div className="flex flex-col">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
+              {t("thisWeek")}
+            </span>
+            <div className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight my-1">
+              {adoptionsThisWeek.toLocaleString()}
+            </div>
+            <div>
+              <BenchmarkIndicator delta={adoptionsThisWeekDelta} />
+            </div>
+          </div>
+          <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-100 text-emerald-600 shadow-2xs group-hover:scale-105 transition-transform">
+            <Calendar className="w-6 h-6" />
+          </div>
+        </div>
       </Card>
     </div>
   );
