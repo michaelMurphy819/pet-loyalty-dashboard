@@ -158,6 +158,7 @@
     "landing": {
       "title": "Welcome to Pet Loyalty",
       "subtitle": "The global business intelligence platform for animal shelter network analytics.",
+      "login": "Log In",
       "loginStaff": "Log in as Staff",
       "loginAdmin": "Log in as Admin"
     },

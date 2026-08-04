@@ -43,14 +43,12 @@ export default async function RegionalDirectoryPage({ searchParams }: { searchPa
           </p>
         </div>
         
-        {role === "admin" && (
-          <div className="shrink-0">
-            <DownloadCsvButton 
-              data={activeTab === "cities" ? cityData : orgData} 
-              label={t("downloadCsv")} 
-            />
-          </div>
-        )}
+        <div className="shrink-0">
+          <DownloadCsvButton 
+            data={activeTab === "cities" ? cityData : orgData} 
+            label={t("downloadCsv")} 
+          />
+        </div>
       </div>
 
       {/* Modern Tab Pills Navigation */}

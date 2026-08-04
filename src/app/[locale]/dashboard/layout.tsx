@@ -96,19 +96,17 @@ export default function DashboardLayout({
               <MapPin className="h-4 w-4 shrink-0 text-indigo-600" />
               <span>{t("regionalDirectory")}</span>
             </Link>
-            {role === "admin" && (
-              <Link
-                href="/dashboard/analytics"
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all duration-150 ${
-                  pathname === "/dashboard/analytics" 
-                    ? "text-indigo-700 bg-indigo-50/90 shadow-2xs font-bold" 
-                    : "text-slate-600 hover:text-indigo-600 hover:bg-slate-50"
-                }`}
-              >
-                <BarChart3 className="h-4 w-4 shrink-0 text-indigo-600" />
-                <span>{t("analytics")}</span>
-              </Link>
-            )}
+            <Link
+              href="/dashboard/analytics"
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all duration-150 ${
+                pathname === "/dashboard/analytics" 
+                  ? "text-indigo-700 bg-indigo-50/90 shadow-2xs font-bold" 
+                  : "text-slate-600 hover:text-indigo-600 hover:bg-slate-50"
+              }`}
+            >
+              <BarChart3 className="h-4 w-4 shrink-0 text-indigo-600" />
+              <span>{t("analytics")}</span>
+            </Link>
           </nav>
 
           {/* Right: Controls & Utilities */}
@@ -163,20 +161,18 @@ export default function DashboardLayout({
                 <MapPin className="h-5 w-5 shrink-0 text-indigo-600" />
                 <span>{t("regionalDirectory")}</span>
               </Link>
-              {role === "admin" && (
-                <Link
-                  href="/dashboard/analytics"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                    pathname === "/dashboard/analytics" 
-                      ? "text-indigo-700 bg-indigo-50/90 shadow-2xs font-black border border-indigo-100" 
-                      : "text-slate-700 hover:text-indigo-600 hover:bg-slate-50"
-                  }`}
-                >
-                  <BarChart3 className="h-5 w-5 shrink-0 text-indigo-600" />
-                  <span>{t("analytics")}</span>
-                </Link>
-              )}
+              <Link
+                href="/dashboard/analytics"
+                onClick={() => setMobileMenuOpen(false)}
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                  pathname === "/dashboard/analytics" 
+                    ? "text-indigo-700 bg-indigo-50/90 shadow-2xs font-black border border-indigo-100" 
+                    : "text-slate-700 hover:text-indigo-600 hover:bg-slate-50"
+                }`}
+              >
+                <BarChart3 className="h-5 w-5 shrink-0 text-indigo-600" />
+                <span>{t("analytics")}</span>
+              </Link>
             </nav>
 
             <div className="pt-2 border-t border-slate-100 sm:hidden flex justify-center">

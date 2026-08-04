@@ -158,6 +158,7 @@
     "landing": {
       "title": "Bienvenido a Pet Loyalty",
       "subtitle": "La plataforma de inteligencia empresarial global para el análisis de redes de refugios de animales.",
+      "login": "Iniciar Sesión",
       "loginStaff": "Iniciar sesión como Personal",
       "loginAdmin": "Iniciar sesión como Administrador"
     },
