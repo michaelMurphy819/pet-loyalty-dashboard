@@ -123,6 +123,12 @@
     },
     "reporting": {
       "exportReport": "Exportar Informe",
+      "selectExportFormat": "Seleccionar Formato de Exportación",
+      "exportSubtitle": "Elija cómo desea exportar la página actual y los datos de análisis.",
+      "downloadCsv": "Descargar Datos CSV",
+      "csvDesc": "Datos tabulares estructurados (.csv) para hojas de cálculo y base de datos.",
+      "downloadScreenshot": "Descargar Captura de Pantalla",
+      "screenshotDesc": "Captura visual de alta resolución (.png) para presentaciones y reportes.",
       "clearAll": "Borrar Todo",
       "plainEnglish": "Mostrando datos de adopción para {year}, rastreando {species} de forma {interval}.",
       "tooltips": {

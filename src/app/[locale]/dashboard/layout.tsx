@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { Link, usePathname } from "@/i18n/routing";
-import { LayoutDashboard, Globe2, MapPin, BarChart3, Menu, X } from "lucide-react";
+import { LayoutDashboard, Globe2, MapPin, Menu, X } from "lucide-react";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { ExportButton } from "@/components/export-button";
 import { useTranslations } from "next-intl";
@@ -96,17 +96,6 @@ export default function DashboardLayout({
               <MapPin className="h-4 w-4 shrink-0 text-indigo-600" />
               <span>{t("regionalDirectory")}</span>
             </Link>
-            <Link
-              href="/dashboard/analytics"
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all duration-150 ${
-                pathname === "/dashboard/analytics" 
-                  ? "text-indigo-700 bg-indigo-50/90 shadow-2xs font-bold" 
-                  : "text-slate-600 hover:text-indigo-600 hover:bg-slate-50"
-              }`}
-            >
-              <BarChart3 className="h-4 w-4 shrink-0 text-indigo-600" />
-              <span>{t("analytics")}</span>
-            </Link>
           </nav>
 
           {/* Right: Controls & Utilities */}
@@ -160,18 +149,6 @@ export default function DashboardLayout({
               >
                 <MapPin className="h-5 w-5 shrink-0 text-indigo-600" />
                 <span>{t("regionalDirectory")}</span>
-              </Link>
-              <Link
-                href="/dashboard/analytics"
-                onClick={() => setMobileMenuOpen(false)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                  pathname === "/dashboard/analytics" 
-                    ? "text-indigo-700 bg-indigo-50/90 shadow-2xs font-black border border-indigo-100" 
-                    : "text-slate-700 hover:text-indigo-600 hover:bg-slate-50"
-                }`}
-              >
-                <BarChart3 className="h-5 w-5 shrink-0 text-indigo-600" />
-                <span>{t("analytics")}</span>
               </Link>
             </nav>
 
