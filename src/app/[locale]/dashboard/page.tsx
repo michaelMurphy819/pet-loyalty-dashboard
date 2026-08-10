@@ -26,6 +26,9 @@ export default async function DashboardPage({
     species: typeof resolvedSearchParams.species === 'string' ? resolvedSearchParams.species : undefined,
     year: typeof resolvedSearchParams.year === 'string' ? resolvedSearchParams.year : undefined,
     platform: typeof resolvedSearchParams.platform === 'string' ? resolvedSearchParams.platform : undefined,
+    breed: typeof resolvedSearchParams.breed === 'string' ? resolvedSearchParams.breed : undefined,
+    city: typeof resolvedSearchParams.city === 'string' ? resolvedSearchParams.city : undefined,
+    shelter: typeof resolvedSearchParams.organization === 'string' ? resolvedSearchParams.organization : undefined,
   };
 
   const data = await getDashboardData(filters);

@@ -5,7 +5,7 @@ import { unstable_cache } from "next/cache";
 import { getServerCache, setServerCache } from "@/lib/server-cache";
 
 export const getDashboardData = unstable_cache(async (
-  filters: { interval?: string; species?: string; year?: string; platform?: string; city?: string; shelter?: string } = {}
+  filters: { interval?: string; species?: string; year?: string; platform?: string; city?: string; shelter?: string; breed?: string } = {}
 ) => {
   const cacheKey = `dash-global:${JSON.stringify(filters)}`;
   const cached = getServerCache(cacheKey);
@@ -39,29 +39,66 @@ export const getDashboardData = unstable_cache(async (
       dateCol = mvDashboardSummary.adoptionMonth;
     }
 
-    const [
-      totalAdoptionsResult,
-      thisWeekResult,
-      lastWeekResult,
-      timeSeriesDataResult,
-      platformData,
-      speciesData,
-      countryDataResult,
-      availableSpeciesRaw,
-      availableYearsRaw,
-      availablePlatformsRaw
-    ] = await Promise.all([
-      db.select({ count: sql<number>`COALESCE(SUM(${mvDashboardSummary.adoptionCount}), 0)::int` }).from(mvDashboardSummary).where(whereClause),
-      db.select({ count: sql<number>`COALESCE(SUM(${mvDashboardSummary.adoptionCount}), 0)::int` }).from(mvDashboardSummary).where(whereClause ? and(whereClause, gte(mvDashboardSummary.adoptionDate, sql`NOW() - INTERVAL '7 days'`)) : gte(mvDashboardSummary.adoptionDate, sql`NOW() - INTERVAL '7 days'`)),
-      db.select({ count: sql<number>`COALESCE(SUM(${mvDashboardSummary.adoptionCount}), 0)::int` }).from(mvDashboardSummary).where(whereClause ? and(whereClause, gte(mvDashboardSummary.adoptionDate, sql`NOW() - INTERVAL '14 days'`), sql`${mvDashboardSummary.adoptionDate} < NOW() - INTERVAL '7 days'`) : and(gte(mvDashboardSummary.adoptionDate, sql`NOW() - INTERVAL '14 days'`), sql`${mvDashboardSummary.adoptionDate} < NOW() - INTERVAL '7 days'`)),
-      db.select({ date: sql<string>`${dateCol}::text`, adoptions: sql<number>`SUM(${mvDashboardSummary.adoptionCount})::int` }).from(mvDashboardSummary).where(whereClause).groupBy(dateCol).orderBy(sql`${dateCol} ASC`),
-      db.select({ name: mvDashboardSummary.platform, value: sql<number>`SUM(${mvDashboardSummary.adoptionCount})::int` }).from(mvDashboardSummary).where(whereClause).groupBy(mvDashboardSummary.platform).orderBy(sql`SUM(${mvDashboardSummary.adoptionCount}) DESC`),
-      db.select({ name: mvDashboardSummary.species, value: sql<number>`SUM(${mvDashboardSummary.adoptionCount})::int` }).from(mvDashboardSummary).where(whereClause).groupBy(mvDashboardSummary.species).orderBy(sql`SUM(${mvDashboardSummary.adoptionCount}) DESC`),
-      db.select({ country: mvDashboardSummary.countryCode, count: sql<number>`SUM(${mvDashboardSummary.adoptionCount})::int` }).from(mvDashboardSummary).where(whereClause).groupBy(mvDashboardSummary.countryCode),
-      db.select({ name: mvDashboardSummary.species }).from(mvDashboardSummary).groupBy(mvDashboardSummary.species),
-      db.select({ year: mvDashboardSummary.adoptionYear }).from(mvDashboardSummary).groupBy(mvDashboardSummary.adoptionYear).orderBy(desc(mvDashboardSummary.adoptionYear)),
-      db.select({ name: mvDashboardSummary.platform }).from(mvDashboardSummary).groupBy(mvDashboardSummary.platform)
-    ]);
+    let totalAdoptionsResult, thisWeekResult, lastWeekResult, timeSeriesDataResult, platformData, speciesData, countryDataResult, availableSpeciesRaw, availableYearsRaw, availablePlatformsRaw;
+
+    if (filters.breed && filters.breed !== 'all') {
+      const rawConditions = [];
+      if (filters.species && filters.species !== 'all') rawConditions.push(eq(petAdoptions.species, filters.species));
+      if (filters.year && filters.year !== 'all') rawConditions.push(sql`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp}) = ${Number(filters.year)}`);
+      if (filters.platform && filters.platform !== 'all') rawConditions.push(eq(petAdoptions.platform, filters.platform));
+      if (filters.city && filters.city !== 'all') rawConditions.push(eq(petAdoptions.city, filters.city));
+      if (filters.shelter && filters.shelter !== 'all') rawConditions.push(eq(petAdoptions.organizationName, filters.shelter));
+      if (filters.breed && filters.breed !== 'all') rawConditions.push(eq(petAdoptions.primaryBreed, filters.breed));
+
+      const rawWhere = rawConditions.length > 0 ? and(...rawConditions) : undefined;
+      
+      let dateColRaw = sql`DATE(${petAdoptions.adoptionTimestamp})`;
+      if (filters.interval === 'weekly') {
+        dateColRaw = sql`DATE_TRUNC('week', ${petAdoptions.adoptionTimestamp})`;
+      } else if (filters.interval === 'monthly') {
+        dateColRaw = sql`DATE_TRUNC('month', ${petAdoptions.adoptionTimestamp})`;
+      }
+
+      [
+        totalAdoptionsResult, thisWeekResult, lastWeekResult, timeSeriesDataResult,
+        platformData, speciesData, countryDataResult, availableSpeciesRaw, availableYearsRaw, availablePlatformsRaw
+      ] = await Promise.all([
+        db.select({ count: sql<number>`COUNT(*)::int` }).from(petAdoptions).where(rawWhere),
+        db.select({ count: sql<number>`COUNT(*)::int` }).from(petAdoptions).where(rawWhere ? and(rawWhere, gte(petAdoptions.adoptionTimestamp, sql`NOW() - INTERVAL '7 days'`)) : gte(petAdoptions.adoptionTimestamp, sql`NOW() - INTERVAL '7 days'`)),
+        db.select({ count: sql<number>`COUNT(*)::int` }).from(petAdoptions).where(rawWhere ? and(rawWhere, gte(petAdoptions.adoptionTimestamp, sql`NOW() - INTERVAL '14 days'`), sql`${petAdoptions.adoptionTimestamp} < NOW() - INTERVAL '7 days'`) : and(gte(petAdoptions.adoptionTimestamp, sql`NOW() - INTERVAL '14 days'`), sql`${petAdoptions.adoptionTimestamp} < NOW() - INTERVAL '7 days'`)),
+        db.select({ date: sql<string>`${dateColRaw}::text`, adoptions: sql<number>`COUNT(*)::int` }).from(petAdoptions).where(rawWhere).groupBy(dateColRaw).orderBy(sql`${dateColRaw} ASC`),
+        db.select({ name: petAdoptions.platform, value: sql<number>`COUNT(*)::int` }).from(petAdoptions).where(rawWhere).groupBy(petAdoptions.platform).orderBy(sql`COUNT(*) DESC`),
+        db.select({ name: petAdoptions.species, value: sql<number>`COUNT(*)::int` }).from(petAdoptions).where(rawWhere).groupBy(petAdoptions.species).orderBy(sql`COUNT(*) DESC`),
+        db.select({ country: petAdoptions.countryCode, count: sql<number>`COUNT(*)::int` }).from(petAdoptions).where(rawWhere).groupBy(petAdoptions.countryCode),
+        db.select({ name: petAdoptions.species }).from(petAdoptions).groupBy(petAdoptions.species),
+        db.select({ year: sql<number>`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp})::int` }).from(petAdoptions).groupBy(sql`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp})`).orderBy(desc(sql`EXTRACT(YEAR FROM ${petAdoptions.adoptionTimestamp})`)),
+        db.select({ name: petAdoptions.platform }).from(petAdoptions).groupBy(petAdoptions.platform)
+      ]);
+    } else {
+      [
+        totalAdoptionsResult,
+        thisWeekResult,
+        lastWeekResult,
+        timeSeriesDataResult,
+        platformData,
+        speciesData,
+        countryDataResult,
+        availableSpeciesRaw,
+        availableYearsRaw,
+        availablePlatformsRaw
+      ] = await Promise.all([
+        db.select({ count: sql<number>`COALESCE(SUM(${mvDashboardSummary.adoptionCount}), 0)::int` }).from(mvDashboardSummary).where(whereClause),
+        db.select({ count: sql<number>`COALESCE(SUM(${mvDashboardSummary.adoptionCount}), 0)::int` }).from(mvDashboardSummary).where(whereClause ? and(whereClause, gte(mvDashboardSummary.adoptionDate, sql`NOW() - INTERVAL '7 days'`)) : gte(mvDashboardSummary.adoptionDate, sql`NOW() - INTERVAL '7 days'`)),
+        db.select({ count: sql<number>`COALESCE(SUM(${mvDashboardSummary.adoptionCount}), 0)::int` }).from(mvDashboardSummary).where(whereClause ? and(whereClause, gte(mvDashboardSummary.adoptionDate, sql`NOW() - INTERVAL '14 days'`), sql`${mvDashboardSummary.adoptionDate} < NOW() - INTERVAL '7 days'`) : and(gte(mvDashboardSummary.adoptionDate, sql`NOW() - INTERVAL '14 days'`), sql`${mvDashboardSummary.adoptionDate} < NOW() - INTERVAL '7 days'`)),
+        db.select({ date: sql<string>`${dateCol}::text`, adoptions: sql<number>`SUM(${mvDashboardSummary.adoptionCount})::int` }).from(mvDashboardSummary).where(whereClause).groupBy(dateCol).orderBy(sql`${dateCol} ASC`),
+        db.select({ name: mvDashboardSummary.platform, value: sql<number>`SUM(${mvDashboardSummary.adoptionCount})::int` }).from(mvDashboardSummary).where(whereClause).groupBy(mvDashboardSummary.platform).orderBy(sql`SUM(${mvDashboardSummary.adoptionCount}) DESC`),
+        db.select({ name: mvDashboardSummary.species, value: sql<number>`SUM(${mvDashboardSummary.adoptionCount})::int` }).from(mvDashboardSummary).where(whereClause).groupBy(mvDashboardSummary.species).orderBy(sql`SUM(${mvDashboardSummary.adoptionCount}) DESC`),
+        db.select({ country: mvDashboardSummary.countryCode, count: sql<number>`SUM(${mvDashboardSummary.adoptionCount})::int` }).from(mvDashboardSummary).where(whereClause).groupBy(mvDashboardSummary.countryCode),
+        db.select({ name: mvDashboardSummary.species }).from(mvDashboardSummary).groupBy(mvDashboardSummary.species),
+        db.select({ year: mvDashboardSummary.adoptionYear }).from(mvDashboardSummary).groupBy(mvDashboardSummary.adoptionYear).orderBy(desc(mvDashboardSummary.adoptionYear)),
+        db.select({ name: mvDashboardSummary.platform }).from(mvDashboardSummary).groupBy(mvDashboardSummary.platform)
+      ]);
+    }
 
     const totalAdoptions = Number(totalAdoptionsResult[0]?.count || 0);
     const adoptionsThisWeek = Number(thisWeekResult[0]?.count || 0);
