@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { sql } from "drizzle-orm";
-import { getSummarySqlWhere } from "@/lib/analytics-filters";
+import { getSummarySqlWhere, getRawSqlWhere } from "@/lib/analytics-filters";
 import { getServerCache, setServerCache, getHttpCacheHeaders } from "@/lib/server-cache";
 
 export async function GET(request: NextRequest) {
@@ -13,10 +13,20 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(cachedPayload, { status: 200, headers: getHttpCacheHeaders(true) });
   }
 
-  const filterSql = getSummarySqlWhere(searchParams);
+  const useRaw = searchParams.has("breed") && searchParams.get("breed") !== "all";
+  const filterSql = useRaw ? getRawSqlWhere(searchParams) : getSummarySqlWhere(searchParams);
 
   try {
-    const result = await db.execute(sql`
+    const query = useRaw ? sql`
+      SELECT 
+        COALESCE(organization_name, 'Independent Partner') AS organization_name,
+        COUNT(*)::int AS total_adoptions
+      FROM analytics.pet_adoptions
+      WHERE organization_name IS NOT NULL AND organization_name != '' AND ${filterSql}
+      GROUP BY organization_name
+      ORDER BY total_adoptions DESC
+      LIMIT 500;
+    ` : sql`
       SELECT 
         COALESCE(organization_name, 'Independent Partner') AS organization_name,
         COALESCE(SUM(adoption_count), 0)::int AS total_adoptions
@@ -25,7 +35,9 @@ export async function GET(request: NextRequest) {
       GROUP BY organization_name
       ORDER BY total_adoptions DESC
       LIMIT 500;
-    `);
+    `;
+
+    const result = await db.execute(query);
     const rows = (result as any).rows ?? result;
     const responsePayload = { data: rows };
     

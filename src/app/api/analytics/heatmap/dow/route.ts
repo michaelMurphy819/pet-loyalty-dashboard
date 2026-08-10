@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { sql } from "drizzle-orm";
-import { getSummarySqlWhere } from "@/lib/analytics-filters";
+import { getSummarySqlWhere, getRawSqlWhere } from "@/lib/analytics-filters";
 import { getServerCache, setServerCache, getHttpCacheHeaders } from "@/lib/server-cache";
 
 export async function GET(request: NextRequest) {
@@ -13,11 +13,20 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(cachedPayload, { status: 200, headers: getHttpCacheHeaders(true) });
   }
 
-  const filterSql = getSummarySqlWhere(searchParams);
+  const useRaw = searchParams.has("breed") && searchParams.get("breed") !== "all";
+  const filterSql = useRaw ? getRawSqlWhere(searchParams) : getSummarySqlWhere(searchParams);
 
   try {
-    // High-speed aggregation via pre-indexed mv_dashboard_summary materialized view
-    const result = await db.execute(sql`
+    const query = useRaw ? sql`
+      SELECT 
+        EXTRACT(DOW FROM adoption_timestamp)::int AS day_of_week,
+        TRIM(TO_CHAR(adoption_timestamp, 'Day')) AS day_name,
+        COUNT(*)::int AS adoption_volume
+      FROM analytics.pet_adoptions
+      WHERE adoption_timestamp IS NOT NULL AND ${filterSql}
+      GROUP BY EXTRACT(DOW FROM adoption_timestamp), TO_CHAR(adoption_timestamp, 'Day')
+      ORDER BY EXTRACT(DOW FROM adoption_timestamp) ASC;
+    ` : sql`
       SELECT 
         EXTRACT(DOW FROM adoption_date)::int AS day_of_week,
         TRIM(TO_CHAR(adoption_date, 'Day')) AS day_name,
@@ -26,7 +35,10 @@ export async function GET(request: NextRequest) {
       WHERE adoption_date IS NOT NULL AND ${filterSql}
       GROUP BY EXTRACT(DOW FROM adoption_date), TO_CHAR(adoption_date, 'Day')
       ORDER BY EXTRACT(DOW FROM adoption_date) ASC;
-    `);
+    `;
+
+    // High-speed aggregation via pre-indexed mv_dashboard_summary materialized view or raw fallback
+    const result = await db.execute(query);
 
     const rows = (result as any).rows ?? result;
     const dataArray = Array.isArray(rows) ? rows : [];

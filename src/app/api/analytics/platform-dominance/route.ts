@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { sql } from "drizzle-orm";
-import { getSummarySqlWhere } from "@/lib/analytics-filters";
+import { getSummarySqlWhere, getRawSqlWhere } from "@/lib/analytics-filters";
 import { getServerCache, setServerCache, getHttpCacheHeaders } from "@/lib/server-cache";
 
 export async function GET(request: NextRequest) {
@@ -13,10 +13,20 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(cachedPayload, { status: 200, headers: getHttpCacheHeaders(true) });
   }
 
-  const filterSql = getSummarySqlWhere(searchParams);
+  const useRaw = searchParams.has("breed") && searchParams.get("breed") !== "all";
+  const filterSql = useRaw ? getRawSqlWhere(searchParams) : getSummarySqlWhere(searchParams);
 
   try {
-    const result = await db.execute(sql`
+    const query = useRaw ? sql`
+      SELECT 
+        state_code,
+        platform,
+        COUNT(*)::int AS adoption_count
+      FROM analytics.pet_adoptions
+      WHERE state_code IS NOT NULL AND platform IS NOT NULL AND ${filterSql}
+      GROUP BY state_code, platform
+      ORDER BY state_code ASC, adoption_count DESC;
+    ` : sql`
       SELECT 
         state_code,
         platform,
@@ -25,7 +35,9 @@ export async function GET(request: NextRequest) {
       WHERE state_code IS NOT NULL AND platform IS NOT NULL AND ${filterSql}
       GROUP BY state_code, platform
       ORDER BY state_code ASC, adoption_count DESC;
-    `);
+    `;
+
+    const result = await db.execute(query);
 
     const rows = (result as any).rows ?? result;
     const pivotMap: Record<string, any> = {};

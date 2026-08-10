@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { sql } from "drizzle-orm";
-import { getSummarySqlWhere } from "@/lib/analytics-filters";
+import { getSummarySqlWhere, getRawSqlWhere } from "@/lib/analytics-filters";
 import { getServerCache, setServerCache, getHttpCacheHeaders } from "@/lib/server-cache";
 
 export async function GET(request: NextRequest) {
@@ -13,11 +13,29 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(cachedPayload, { status: 200, headers: getHttpCacheHeaders(true) });
   }
 
-  const filterSql = getSummarySqlWhere(searchParams);
+  const useRaw = searchParams.has("breed") && searchParams.get("breed") !== "all";
+  const filterSql = useRaw ? getRawSqlWhere(searchParams) : getSummarySqlWhere(searchParams);
 
   try {
-    // High-performance window aggregation on pre-aggregated daily summary rows
-    const result = await db.execute(sql`
+    const query = useRaw ? sql`
+      WITH daily_counts AS (
+        SELECT 
+          DATE(adoption_timestamp) AS adoption_date,
+          COUNT(*)::int AS daily_volume
+        FROM analytics.pet_adoptions
+        WHERE adoption_timestamp IS NOT NULL AND ${filterSql}
+        GROUP BY DATE(adoption_timestamp)
+      )
+      SELECT 
+        TO_CHAR(adoption_date, 'YYYY-MM-DD') AS date_str,
+        daily_volume,
+        ROUND(AVG(daily_volume) OVER (
+          ORDER BY adoption_date 
+          ROWS BETWEEN 29 PRECEDING AND CURRENT ROW
+        ), 1)::float AS moving_avg_30d
+      FROM daily_counts
+      ORDER BY adoption_date ASC;
+    ` : sql`
       WITH daily_counts AS (
         SELECT 
           adoption_date,
@@ -35,7 +53,10 @@ export async function GET(request: NextRequest) {
         ), 1)::float AS moving_avg_30d
       FROM daily_counts
       ORDER BY adoption_date ASC;
-    `);
+    `;
+
+    // High-performance window aggregation
+    const result = await db.execute(query);
     
     const rows = (result as any).rows ?? result;
     const dataArray = Array.isArray(rows) ? rows : [];
